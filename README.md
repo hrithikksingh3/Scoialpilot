@@ -1,24 +1,64 @@
-# Scoialpilot — Social Automation Engine
+# Scoialpilot — Social Content Automation
 
-A cost-conscious content research and publishing engine for Codersvoice. The current milestone researches technology stories from public RSS feeds, scores and deduplicates them, writes a JSON report, and can persist the results to PostgreSQL.
+Scoialpilot is a free-first content research, AI-assisted drafting, review, and scheduling workspace for Codersvoice. It is designed to fail closed when free AI capacity is unavailable; it must never silently use paid AI.
 
-## Current status
+## Current implementation
 
-- [x] RSS ingestion from Hacker News, GitHub Blog, and Cloudflare Blog
-- [x] Relevance/recency scoring and URL deduplication
-- [x] JSON research report saved to `reports/latest.json`
-- [x] Optional PostgreSQL persistence
-- [x] GitHub Actions scheduled workflow and report artifact
-- [x] TypeScript checks and unit tests in CI
-- [x] Neon database connection configured (verify with Research Pipeline)
-- [x] AI-assisted, evidence-backed platform drafts (Gemini primary, explicitly free OpenRouter fallback)
-- [x] Neon-backed pending-approval draft queue and manual Generate Drafts workflow
-- [ ] Approval dashboard
-- [ ] Threads, Facebook Page, and LinkedIn publishing adapters
+- [x] Public RSS research from Hacker News, GitHub Blog, and Cloudflare Blog
+- [x] Story scoring, topic diversity, and duplicate reduction
+- [x] Gemini drafting with explicitly free OpenRouter fallback
+- [x] Neon/PostgreSQL persistence for drafts and review status
+- [x] Protected Vercel dashboard with token authentication
+- [x] Edit captions, approve/reject drafts, and view draft status
+- [x] Separate draft-generation schedule (daily batch count, local time, timezone)
+- [x] Separate publishing-queue controls (posts/day, start time, interval, timezone)
+- [x] Approval and availability validation before reserving drafts
+- [x] Unique draft reservation and next-day scheduling when today's first slot has passed
+- [x] Responsive dashboard styling for mobile, tablet, and desktop
+- [x] CI type-check and test workflow
+- [ ] Due-queue worker and live social-platform publishing adapters
+- [ ] Platform connection/OAuth setup and end-to-end publish verification
+- [ ] Queue cancellation/rescheduling controls, retries, and delivery reporting
 
-Publishing is deliberately disabled. Generated drafts are saved to the Neon `content_drafts` table with `pending_approval` status. The Generate Drafts workflow runs research first, then generates and persists drafts. No posts are published.
+**Important:** Saving a publishing schedule currently reserves approved drafts into a database queue. It does **not** publish to Threads, Facebook, or LinkedIn. Do not treat a queued item as published. The publishing worker and platform integrations must be implemented and tested before enabling real posting.
 
-## Run locally
+## Deployment
+
+### Vercel dashboard
+
+Deploy the repository root on Vercel, with the main branch connected. Configure these environment variables in Vercel:
+
+- DATABASE_URL: Neon PostgreSQL connection string (server-side only).
+- DASHBOARD_ACCESS_TOKEN: long random dashboard access token.
+
+Redeploy after changing environment variables. The static UI is public/index.html; serverless endpoints live under api/.
+
+### GitHub Actions
+
+Configure repository Actions secrets:
+
+- DATABASE_URL
+- GEMINI_API_KEY
+- OPENROUTER_API_KEY (optional fallback)
+
+Optional repository variables:
+
+- OPENROUTER_FREE_MODEL: an explicitly free model identifier, ideally ending in :free.
+- GEMINI_MODEL: Gemini model ID.
+
+Do not commit secrets or paste them into chat. Keep ALLOW_PAID_AI=false; the pipeline intentionally stops rather than falling back to paid AI.
+
+### Database schema
+
+Apply migrations in order if not already created:
+
+1. database/schema/001_research.sql
+2. database/schema/002_content_drafts.sql
+3. database/schema/003_publish_queue.sql
+
+The API currently also creates its required schedule/queue tables if they are missing. Migrations are included to make the schema reproducible.
+
+## Run and test locally
 
 Requirements: Node.js 20+.
 
@@ -27,53 +67,24 @@ npm install
 npm run typecheck
 npm test
 npm run research
-# after research and required API/database environment variables are configured:
 npm run generate-drafts
 npm run list-drafts
 ```
 
-The research job writes `reports/latest.json`. If all RSS feeds fail, the job exits unsuccessfully so the failure is visible in GitHub Actions.
+Draft generation requires a recent reports/latest.json and configured free-tier AI/database environment variables. Never enable paid AI as an automatic fallback.
 
-## Generate and review drafts
+## Daily scheduling behavior
 
-1. Add repository secrets `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and `DATABASE_URL`.
-2. Add repository variable `OPENROUTER_FREE_MODEL` with an available free model ID ending in `:free`. Never set a paid model here.
-3. Open **Actions → Generate Drafts → Run workflow** and choose 1–3 stories. This workflow refreshes research first, then generates drafts.
-4. The workflow saves records in Neon table `content_drafts` and uploads a `scoialpilot-drafts` JSON artifact for seven days.
-5. To inspect pending drafts locally, configure `DATABASE_URL` and run `npm run list-drafts`.
+Draft generation and publishing queue reservation are separate:
 
-The draft queue is currently database-backed; a visual web approval dashboard is not yet implemented. Publishing remains disabled.
+- **Draft generation schedule:** creates a batch of 1–5 draft candidates at the configured local hour. GitHub Actions checks hourly, so the time should be selected on an hourly boundary for reliable operation.
+- **Publishing queue:** reserves 1–5 already-approved, not-yet-reserved drafts at the chosen start time and interval. If the first slot for today has passed, the queue begins tomorrow. If the selected slots cross midnight or there are not enough approved drafts, the request is rejected.
+- **Publishing status:** queue status is not proof of delivery. Real publishing remains disabled until a worker and platform adapters are connected.
 
-## Enable Neon/PostgreSQL persistence
-
-1. Create a free PostgreSQL project in Neon.
-2. Copy its pooled or direct connection string from the Neon dashboard. Keep the password private.
-3. In this repository, open **Settings → Secrets and variables → Actions → New repository secret**.
-4. Name the secret `DATABASE_URL` and paste the connection string as its value.
-5. Run **Actions → Research Pipeline → Run workflow**.
-6. Open the run summary and download the `scoialpilot-research-report` artifact. The job summary reports whether persistence was enabled.
-
-On the first successful database connection, the application creates the research tables automatically. The SQL migration is also available at `database/schema/001_research.sql`.
-
-Do not put database credentials in source files, workflow YAML, issue comments, or commit history.
-
-## Free-tier safety
+## Free-tier and safety policy
 
 - No paid AI provider is enabled or required.
-- No social publishing is enabled in this milestone.
-- If `DATABASE_URL` is not configured, the report is still generated and uploaded as an artifact; it is not stored permanently in Postgres.
-- Provider free tiers can change. The architecture should stop or queue work instead of silently opting into paid usage.
-
-## Deploy the visual approval dashboard (Vercel)
-
-The dashboard is a static frontend backed by protected Vercel serverless API routes. It does not connect to Neon from the browser.
-
-1. Import this GitHub repository into Vercel: https://vercel.com/new
-2. Keep the repository root as the project root and deploy the `main` branch.
-3. In Vercel Project Settings → Environment Variables, add:
-   - `DATABASE_URL`: Neon connection string (server-side only; never use a `NEXT_PUBLIC_` prefix).
-   - `DASHBOARD_ACCESS_TOKEN`: a long random secret used to unlock the dashboard.
-4. Redeploy after adding the variables.
-5. Open the deployed site URL, enter the access token, and review drafts. The dashboard supports editing captions, approving, and rejecting. Approval records a review decision only; publishing remains disabled.
-
-Keep the Vercel deployment private to people who know the access token. If the token is missing, the API fails closed. Use Neon pooled connection string if available. Dashboard data is fetched from the latest 100 drafts.
+- Research uses public feeds/endpoints where possible.
+- Do not add paid APIs, hosted workers, or billing-dependent services as critical-path dependencies without explicit approval.
+- Keep tokens in Vercel environment variables or GitHub Actions secrets.
+- Publishing must remain disabled until platform-specific authentication, request validation, idempotency, failure handling, and end-to-end verification are complete.
