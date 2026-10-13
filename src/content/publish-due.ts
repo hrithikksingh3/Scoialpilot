@@ -84,26 +84,18 @@ async function publishLinkedIn(text: string): Promise<string> {
   requireCredentials("linkedin");
   const organizationId = env("LINKEDIN_ORGANIZATION_ID").replace(/^urn:li:organization:/, "");
   if (!/^\d+$/.test(organizationId)) throw new Error("LINKEDIN_ORGANIZATION_ID must be a numeric organization ID or organization URN");
-  const result = await requestJson("https://api.linkedin.com/rest/posts", {
+  const response = await fetch("https://api.linkedin.com/rest/posts", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${env("LINKEDIN_ACCESS_TOKEN")}`,
-      "Content-Type": "application/json",
-      "LinkedIn-Version": env("LINKEDIN_VERSION"),
-      "X-Restli-Protocol-Version": "2.0.0"
-    },
-    body: JSON.stringify({
-      author: `urn:li:organization:${organizationId}`,
-      commentary: text,
-      visibility: "PUBLIC",
-      distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
-      lifecycleState: "PUBLISHED",
-      isReshareDisabledByAuthor: false
-    })
+    headers: { Authorization: `Bearer ${env("LINKEDIN_ACCESS_TOKEN")}`, "Content-Type": "application/json", "LinkedIn-Version": env("LINKEDIN_VERSION"), "X-Restli-Protocol-Version": "2.0.0" },
+    body: JSON.stringify({ author: `urn:li:organization:${organizationId}`, commentary: text, visibility: "PUBLIC", distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] }, lifecycleState: "PUBLISHED", isReshareDisabledByAuthor: false }),
+    signal: AbortSignal.timeout(25000)
   });
-  const headerId = result.id;
-  if (typeof headerId === "string") return headerId;
-  throw new Error("LinkedIn did not return a post ID; verify API response and permissions");
+  const body = await response.text();
+  if (!response.ok) { let message = body || `HTTP ${response.status}`; try { const parsed = JSON.parse(body) as { message?: unknown }; if (typeof parsed.message === "string") message = parsed.message; } catch { /* retain response text */ } throw new Error(`LinkedIn API: ${message} (HTTP ${response.status})`); }
+  const headerId = response.headers.get("x-restli-id");
+  if (headerId) return headerId;
+  try { const parsed = body ? JSON.parse(body) as { id?: unknown } : {}; if (typeof parsed.id === "string") return parsed.id; } catch { /* successful response may have no JSON body */ }
+  throw new Error("LinkedIn accepted the request but returned no post ID; delivery outcome requires manual reconciliation");
 }
 
 async function publish(platform: Platform, draft: PlatformDraft): Promise<string> {
