@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   console.log(JSON.stringify({
     status: "completed",
     draftsGenerated: drafts.length,
-    failures: failures.length,
+    failures: failures.map((item) => ({ provider: item.provider, sourceUrl: item.sourceUrl, error: item.error.slice(0, 240) })),
     providersUsed: [...new Set(drafts.map((item) => item.provider))],
     reviewStatus: "pending_approval",
     publishingStatus: "not_published",
