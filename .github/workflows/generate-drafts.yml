@@ -1,14 +1,17 @@
 name: Generate Drafts
 
 on:
+  schedule:
+    # Generate two fresh drafts daily; approval is still required before any publishing.
+    - cron: "30 4 * * *"
   workflow_dispatch:
     inputs:
       draft_limit:
-        description: "Maximum number of research stories to turn into drafts (1-3)"
+        description: "Number of distinct content drafts to generate (1-5)"
         required: true
-        default: "3"
+        default: "2"
         type: choice
-        options: ["1", "2", "3"]
+        options: ["1", "2", "3", "4", "5"]
 
 permissions:
   contents: read
@@ -49,7 +52,7 @@ jobs:
           OPENROUTER_FREE_MODEL: ${{ vars.OPENROUTER_FREE_MODEL || 'openrouter/free' }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           ALLOW_PAID_AI: "false"
-          DRAFT_LIMIT: ${{ inputs.draft_limit }}
+          DRAFT_LIMIT: ${{ inputs.draft_limit || '2' }}
       - name: Upload draft report
         if: always()
         uses: actions/upload-artifact@v4
