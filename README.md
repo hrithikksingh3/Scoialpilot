@@ -16,11 +16,11 @@ Scoialpilot is a free-first content research, AI-assisted drafting, review, and 
 - [x] Unique draft reservation and next-day scheduling when today's first slot has passed
 - [x] Responsive dashboard styling for mobile, tablet, and desktop
 - [x] CI type-check and test workflow
-- [ ] Due-queue worker and live social-platform publishing adapters
-- [ ] Platform connection/OAuth setup and end-to-end publish verification
-- [ ] Queue cancellation/rescheduling controls, retries, and delivery reporting
+- [x] Opt-in due-queue worker and text-only adapters for Threads, Facebook Pages, and LinkedIn Company Pages
+- [ ] Add platform credentials/permissions and verify each platform with a controlled test post
+- [x] Per-platform delivery ledger with post IDs, attempts, error states, and ambiguous-outcome protection\n- [ ] Queue cancellation/rescheduling controls and dashboard delivery reporting
 
-**Important:** Saving a publishing schedule currently reserves approved drafts into a database queue. It does **not** publish to Threads, Facebook, or LinkedIn. Do not treat a queued item as published. The publishing worker and platform integrations must be implemented and tested before enabling real posting.
+**Important:** The worker and text-post adapters are implemented, but real publishing remains opt-in and is not verified until valid platform credentials and permissions are configured. Queueing alone is not publishing. Keep both repository variables `PUBLISHING_ENABLED=false` and `PUBLISH_DRY_RUN=true` until you intentionally enable live posting. The worker will not publish with the default settings.
 
 ## Deployment
 
@@ -39,7 +39,7 @@ Configure repository Actions secrets:
 
 - DATABASE_URL
 - GEMINI_API_KEY
-- OPENROUTER_API_KEY (optional fallback)
+- OPENROUTER_API_KEY (optional fallback)\n- THREADS_ACCESS_TOKEN and THREADS_USER_ID\n- FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID (Facebook Page only, not a personal profile)\n- LINKEDIN_ACCESS_TOKEN and LINKEDIN_ORGANIZATION_ID
 
 Optional repository variables:
 
@@ -54,9 +54,9 @@ Apply migrations in order if not already created:
 
 1. database/schema/001_research.sql
 2. database/schema/002_content_drafts.sql
-3. database/schema/003_publish_queue.sql
+3. database/schema/003_publish_queue.sql\n4. database/schema/004_publish_deliveries.sql
 
-The API currently also creates its required schedule/queue tables if they are missing. Migrations are included to make the schema reproducible.
+The dashboard API creates schedule/queue tables if missing; the publishing worker creates its delivery ledger if missing. Migrations are included to make the schema reproducible.
 
 ## Run and test locally
 
@@ -87,4 +87,4 @@ Draft generation and publishing queue reservation are separate:
 - Research uses public feeds/endpoints where possible.
 - Do not add paid APIs, hosted workers, or billing-dependent services as critical-path dependencies without explicit approval.
 - Keep tokens in Vercel environment variables or GitHub Actions secrets.
-- Publishing must remain disabled until platform-specific authentication, request validation, idempotency, failure handling, and end-to-end verification are complete.
+- The worker processes only due, approved queue items. Per-platform delivery state is recorded independently.\n- A network timeout or ambiguous platform response is marked `unknown` and is not automatically retried, to reduce duplicate-post risk. Check the platform manually before any retry.\n- Initial adapters publish text only; visual/image upload is not implemented.\n- Real publishing must remain disabled until platform permissions, token validity, and controlled end-to-end posts are verified.
