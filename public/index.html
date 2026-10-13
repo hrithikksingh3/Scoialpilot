@@ -84,6 +84,16 @@ input,select,textarea,button{min-height:42px}
 <div class="panel" id="publishingPanel">
 <div class="top"><div><h2 style="margin:0">🗓 Publishing schedule</h2><div class="muted">Reserve approved drafts into daily posting slots. This reserves approved posts. Real publishing requires platform credentials and explicit repository opt-in.</div></div><span class="pill">Queue mode</span></div>
 <div class="stats" style="margin-top:14px"><div class="stat"><span class="muted">Approved drafts available</span><b id="approvedAvailable">—</b></div><div class="stat"><span class="muted">Posts to schedule</span><b id="publishCountPreview">—</b></div><div class="stat"><span class="muted">Daily interval</span><b id="intervalPreview">2 hours</b></div></div>
+<section class="panel" id="platformSettingsPanel" style="margin-top:14px;background:#0d0d17">
+<div class="top"><div><h3 style="margin:0">Platform auto-publishing</h3><div class="muted">Only checked platforms can receive posts. Credentials alone never enable a platform.</div></div><span class="pill">Independent controls</span></div>
+<div class="field" style="gap:12px;margin-top:14px;align-items:stretch">
+<label class="platform" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer"><input id="platformThreads" type="checkbox" style="width:20px;height:20px;min-height:20px"> <span><strong>Threads</strong><span class="muted" style="display:block;font-size:12px">Codersvoice Threads account</span></span></label>
+<label class="platform" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer"><input id="platformFacebook" type="checkbox" style="width:20px;height:20px;min-height:20px"> <span><strong>Facebook Page</strong><span class="muted" style="display:block;font-size:12px">Codersvoice Page only</span></span></label>
+<label class="platform" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer"><input id="platformLinkedin" type="checkbox" style="width:20px;height:20px;min-height:20px"> <span><strong>LinkedIn Page</strong><span class="muted" style="display:block;font-size:12px">Codersvoice Company Page</span></span></label>
+</div>
+<div class="actions"><button id="savePlatformSettings" class="primary" type="button">Save platform selection</button><span id="platformSettingsStatus" class="muted" aria-live="polite">Loading platform settings…</span></div>
+<div class="notice">Unchecked platforms are skipped by the publishing worker. If all are unchecked, no platform receives a post. Changes are saved to Neon and apply to the next worker run.</div>
+</section>
 <form id="publishForm" style="margin-top:14px"><div class="field" style="align-items:end">
 <label style="flex:1;min-width:150px">Posts per day<select id="publishCount" style="display:block;width:100%;margin-top:6px;background:#0b0b13;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px"><option value="1">1 post</option><option value="2">2 posts</option><option value="3">3 posts</option><option value="4">4 posts</option><option value="5">5 posts</option></select></label>
 <label style="flex:1;min-width:150px">First post at<input id="publishStart" type="time" value="10:00" required style="display:block;width:100%;margin-top:6px;background:#0b0b13;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px"></label>
@@ -105,7 +115,7 @@ $('loginForm').addEventListener('submit',async e=>{e.preventDefault();token=$('t
 $('logout').onclick=()=>{token='';sessionStorage.removeItem('scoialpilot_token');showApp()};
 $('refresh').onclick=load;
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{status=b.dataset.status;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));render()});
-async function load(){ $('message').textContent='Loading drafts…';try{await loadScheduler();const r=await fetch('/api/drafts',{headers:auth()});if(r.status===401||r.status===403)throw new Error('Access token rejected. Check DASHBOARD_ACCESS_TOKEN and try again.');if(!r.ok)throw new Error('Draft API failed ('+r.status+').');const data=await r.json();drafts=data.drafts||[];$('pendingCount').textContent=data.counts.pending_approval||0;$('approvedCount').textContent=data.counts.approved||0;$('rejectedCount').textContent=data.counts.rejected||0;approvedAvailable=Number(data.counts.approved||0);$('approvedAvailable').textContent=String(approvedAvailable);$('message').textContent='Loaded '+drafts.length+' recent drafts.';render();await loadPublishSchedule()}catch(e){$('message').innerHTML='<span class="error">'+esc(e.message)+'</span>';$('loginError').textContent=e.message}}
+async function load(){ $('message').textContent='Loading drafts…';try{await loadScheduler();const r=await fetch('/api/drafts',{headers:auth()});if(r.status===401||r.status===403)throw new Error('Access token rejected. Check DASHBOARD_ACCESS_TOKEN and try again.');if(!r.ok)throw new Error('Draft API failed ('+r.status+').');const data=await r.json();drafts=data.drafts||[];$('pendingCount').textContent=data.counts.pending_approval||0;$('approvedCount').textContent=data.counts.approved||0;$('rejectedCount').textContent=data.counts.rejected||0;approvedAvailable=Number(data.counts.approved||0);$('approvedAvailable').textContent=String(approvedAvailable);$('message').textContent='Loaded '+drafts.length+' recent drafts.';render();await loadPlatformSettings();await loadPublishSchedule()}catch(e){$('message').innerHTML='<span class="error">'+esc(e.message)+'</span>';$('loginError').textContent=e.message}}
 
 let approvedAvailable=0;
 function updatePublishPreview(){
@@ -121,6 +131,30 @@ function updatePublishPreview(){
  else if(!enough)$('publishPreview').textContent+=' Not enough approved drafts yet—approve at least '+(count-approvedAvailable)+' more.';
 }
 ['publishCount','publishStart','publishInterval','publishTimezone'].forEach(id=>$(id).addEventListener('change',updatePublishPreview));
+const platformIds={threads:'platformThreads',facebook:'platformFacebook',linkedin:'platformLinkedin'};
+async function loadPlatformSettings(){
+ try{
+  const r=await fetch('/api/platform-settings',{headers:auth()});const data=await r.json();
+  if(!r.ok)throw new Error(data.error||'Could not load platform settings');
+  Object.entries(platformIds).forEach(([key,id])=>$(id).checked=!!data.platforms?.[key]);
+  const enabled=Object.entries(data.platforms||{}).filter(([,on])=>on).map(([key])=>key);
+  $('platformSettingsStatus').textContent='Saved selection loaded · '+(enabled.join(', ')||'none enabled');
+  $('platformSettingsStatus').className='muted';
+ }catch(e){$('platformSettingsStatus').textContent=e.message+' · publishing remains off if settings are unavailable';$('platformSettingsStatus').className='error'}
+}
+$('savePlatformSettings').addEventListener('click',async()=>{
+ const b=$('savePlatformSettings');b.disabled=true;$('platformSettingsStatus').textContent='Saving…';
+ try{
+  const platforms={threads:$('platformThreads').checked,facebook:$('platformFacebook').checked,linkedin:$('platformLinkedin').checked};
+  const r=await fetch('/api/platform-settings',{method:'PUT',headers:auth(),body:JSON.stringify(platforms)});const data=await r.json();
+  if(!r.ok)throw new Error(data.error||'Could not save platform selection');
+  Object.entries(platformIds).forEach(([key,id])=>$(id).checked=!!data.platforms[key]);
+  const enabled=Object.entries(data.platforms).filter(([,on])=>on).map(([key])=>key);
+  $('platformSettingsStatus').textContent='Saved. Active platforms: '+(enabled.join(', ')||'none — auto-publishing off everywhere');
+  $('platformSettingsStatus').className='muted';
+ }catch(e){$('platformSettingsStatus').textContent=e.message;$('platformSettingsStatus').className='error'}
+ finally{b.disabled=false}
+});
 async function loadPublishSchedule(){
  try{
   const r=await fetch('/api/publish-schedule',{headers:auth()});
