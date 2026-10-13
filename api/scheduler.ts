@@ -19,6 +19,7 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS content_scheduler_config (
   drafts_per_day INTEGER NOT NULL DEFAULT 2 CHECK (drafts_per_day BETWEEN 1 AND 5),
   run_at_local TEXT NOT NULL DEFAULT '10:00' CHECK (run_at_local ~ '^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$'),
   timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata',
+  last_run_local_date TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 INSERT INTO content_scheduler_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;`;
