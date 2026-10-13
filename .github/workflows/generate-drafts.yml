@@ -46,7 +46,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_FREE_MODEL: ${{ vars.OPENROUTER_FREE_MODEL }}
+          OPENROUTER_FREE_MODEL: ${{ vars.OPENROUTER_FREE_MODEL || 'openrouter/free' }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           ALLOW_PAID_AI: "false"
           DRAFT_LIMIT: ${{ inputs.draft_limit }}
