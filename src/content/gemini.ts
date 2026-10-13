@@ -52,7 +52,7 @@ export function validateDraftPayload(value: unknown, story: ResearchStory, now =
     if (!found) throw new Error(`Invalid AI response: missing ${platform} draft`);
     const hook = isRecord(found) && typeof found.hook === "string" ? found.hook : story.title;
     const angle = typeof value.angle === "string" ? value.angle : "Tech Signal";
-    const visualUrl = "https://scoialpilot.vercel.app/api/visual?title=" + encodeURIComponent(hook) + "&category=" + encodeURIComponent(angle) + "&topic=" + encodeURIComponent(story.source);
+    const visualUrl = "https://scoialpilot.vercel.app/api/visual?title=" + encodeURIComponent(hook) + "&category=" + encodeURIComponent(angle) + "&topic=" + encodeURIComponent(story.source) + (story.imageUrl ? "&image=" + encodeURIComponent(story.imageUrl) : "");
     return validatePlatformDraft(found, platform, visualUrl);
   });
   return {
