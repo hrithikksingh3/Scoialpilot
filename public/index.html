@@ -43,13 +43,14 @@ let approvedAvailable=0;
 function updatePublishPreview(){
  const count=Number($('publishCount').value), interval=Number($('publishInterval').value), start=$('publishStart').value||'10:00';
  $('publishCountPreview').textContent=String(count);$('intervalPreview').textContent=interval+' hour'+(interval===1?'':'s');
- const [h,m]=start.split(':').map(Number), slots=[];
- for(let i=0;i<count;i++){const total=h*60+m+i*interval*60;if(total>=24*60){slots.push('Next day '+String(Math.floor((total-1440)/60)).padStart(2,'0')+':'+String((total-1440)%60).padStart(2,'0'));}else slots.push(String(Math.floor(total/60)).padStart(2,'0')+':'+String(total%60).padStart(2,'0'));}
+ const [h,m]=start.split(':').map(Number), slots=[], spills=h*60+m+(count-1)*interval*60>=1440;
+ for(let i=0;i<count;i++){const total=h*60+m+i*interval*60;slots.push(String(Math.floor(total/60)).padStart(2,'0')+':'+String(total%60).padStart(2,'0'));}
  $('publishPreview').textContent='Planned slots ('+$('publishTimezone').value+'): '+slots.join(' · ')+'. You need '+count+' approved drafts; no posts will be published until platform integrations are connected.';
  const enough=approvedAvailable>=count;
- $('publishStatus').textContent=approvedAvailable+' approved draft(s) available';
- $('savePublishSchedule').disabled=!enough;
- if(!enough)$('publishPreview').textContent+=' Not enough approved drafts yet—approve at least '+(count-approvedAvailable)+' more.';
+ $('publishStatus').textContent=approvedAvailable+' unscheduled approved draft(s) available';
+ $('savePublishSchedule').disabled=!enough||spills;
+ if(spills)$('publishPreview').textContent+=' These slots cross midnight. Choose an earlier start, fewer posts, or a shorter interval.';
+ else if(!enough)$('publishPreview').textContent+=' Not enough approved drafts yet—approve at least '+(count-approvedAvailable)+' more.';
 }
 ['publishCount','publishStart','publishInterval','publishTimezone'].forEach(id=>$(id).addEventListener('change',updatePublishPreview));
 async function loadPublishSchedule(){
