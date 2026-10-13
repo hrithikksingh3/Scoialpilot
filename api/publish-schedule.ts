@@ -34,6 +34,22 @@ CREATE TABLE IF NOT EXISTS content_publish_queue (
 );
 CREATE INDEX IF NOT EXISTS idx_content_publish_queue_scheduled ON content_publish_queue(status, scheduled_at);
 `;
+const CREATE_DELIVERY_SQL = `
+CREATE TABLE IF NOT EXISTS content_publish_deliveries (
+ id BIGSERIAL PRIMARY KEY,
+ queue_id BIGINT NOT NULL REFERENCES content_publish_queue(id) ON DELETE CASCADE,
+ draft_id TEXT NOT NULL REFERENCES content_drafts(id) ON DELETE CASCADE,
+ platform TEXT NOT NULL CHECK (platform IN ('threads','facebook','linkedin')),
+ status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','processing','published','failed','unknown','skipped')),
+ platform_post_id TEXT,
+ attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+ last_error TEXT,
+ published_at TIMESTAMPTZ,
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ UNIQUE(queue_id,platform)
+);
+CREATE INDEX IF NOT EXISTS idx_publish_deliveries_status ON content_publish_deliveries(status,updated_at);
+`;
 function localParts(date: Date, timezone: string) {
  const p = new Intl.DateTimeFormat("en-CA",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);
  const get=(type:string)=>p.find(x=>x.type===type)?.value??"";
@@ -59,6 +75,7 @@ export default async function handler(req:Req,res:Res){
  if(!authorized(req))return fail(res,401,"Unauthorized");
  try{
   await pool.query(CREATE_SQL);
+  await pool.query(CREATE_DELIVERY_SQL);
   if(req.method==="GET"){
    const [cfg,available,queue]=await Promise.all([
     pool.query('SELECT posts_per_day AS "postsPerDay", start_at_local AS "startAtLocal", interval_hours AS "intervalHours", timezone FROM content_publish_schedule WHERE id=1'),
