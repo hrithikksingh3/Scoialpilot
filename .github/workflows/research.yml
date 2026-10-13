@@ -16,7 +16,7 @@ concurrency:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -39,3 +39,13 @@ jobs:
         run: npm run research
         env:
           NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Upload research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scoialpilot-research-report
+          path: reports/latest.json
+          if-no-files-found: ignore
+          retention-days: 7
