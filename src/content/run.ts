@@ -4,6 +4,7 @@ import type { ResearchReport } from "../research/types.js";
 import type { ContentDraft } from "./types.js";
 import { generateDraft } from "./gemini.js";
 import { generateWithOpenRouter } from "./openrouter.js";
+import { saveDrafts } from "./persistence.js";
 
 async function main(): Promise<void> {
   if (process.env.ALLOW_PAID_AI === "true") throw new Error("Paid AI is disabled. Set ALLOW_PAID_AI=false.");
@@ -29,6 +30,11 @@ async function main(): Promise<void> {
         failures.push({ sourceUrl: story.url, provider: "openrouter", error: fallbackError instanceof Error ? fallbackError.message : "Unknown OpenRouter error" });
       }
     }
+  }
+
+  if (drafts.length > 0) {
+    const saved = await saveDrafts(drafts);
+    console.log(JSON.stringify({ database: "neon", draftsSaved: saved.saved, reviewStatus: "pending_approval" }));
   }
 
   const output = {
