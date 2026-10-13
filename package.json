@@ -13,7 +13,9 @@
     "research": "tsx src/research/run.ts",
     "generate-drafts": "tsx src/content/run.ts",
     "list-drafts": "tsx src/content/list-drafts.ts",
-    "review-draft": "tsx src/content/review-draft.ts"
+    "review-draft": "tsx src/content/review-draft.ts",
+    "scheduler-check": "tsx src/content/scheduler.ts",
+    "scheduler-mark-run": "tsx src/content/scheduler.ts mark"
   },
   "dependencies": {
     "pg": "^8.16.3"
