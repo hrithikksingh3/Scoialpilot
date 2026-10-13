@@ -1,27 +1,27 @@
 import type { ResearchStory } from "../research/types.js";
 
 const TOPICS: Array<{ name: string; pattern: RegExp }> = [
-  { name: "AI models", pattern: /\\b(ai|llm|language model|multimodal|inference|foundation model|generative)\\b/i },
-  { name: "AI agents", pattern: /\\b(agent|agentic|workflow automation|computer use|tool calling)\\b/i },
-  { name: "Cybersecurity", pattern: /\\b(security|vulnerabilit|breach|privacy|auth|encryption|malware|ransomware|patch)\\b/i },
-  { name: "Developer tools", pattern: /\\b(developer|sdk|api|framework|compiler|programming|ide|editor|debugger)\\b/i },
-  { name: "Open source", pattern: /\\b(open.source|repository|license|maintainer|self.hosted|github)\\b/i },
-  { name: "Cloud and infrastructure", pattern: /\\b(cloud|serverless|worker|compute|database|hosting|infrastructure|network|cdn|edge)\\b/i },
-  { name: "Robotics and hardware", pattern: /\\b(robot|robotics|chip|gpu|processor|semiconductor|hardware|device)\\b/i },
-  { name: "Consumer technology", pattern: /\\b(phone|laptop|browser|consumer|android|ios|smartphone|gadget)\\b/i },
-  { name: "Startups and business", pattern: /\\b(startup|funding|valuation|acquisition|business|company|revenue|product launch)\\b/i },
-  { name: "Science and research", pattern: /\\b(research|paper|scientist|experiment|study|benchmark|dataset)\\b/i },
-  { name: "Creator economy", pattern: /\\b(creator|youtube|instagram|social media|content|video|monetiz|newsletter)\\b/i },
-  { name: "Web and browsers", pattern: /\\b(browser|web platform|html|css|javascript|typescript|webassembly|webgpu)\\b/i }
+  { name: "AI models", pattern: /\b(ai|llm|language model|multimodal|inference|foundation model|generative)\b/i },
+  { name: "AI agents", pattern: /\b(agent|agentic|workflow automation|computer use|tool calling)\b/i },
+  { name: "Cybersecurity", pattern: /\b(security|vulnerabilit|breach|privacy|auth|encryption|malware|ransomware|patch)\b/i },
+  { name: "Developer tools", pattern: /\b(developer|sdk|api|framework|compiler|programming|ide|editor|debugger)\b/i },
+  { name: "Open source", pattern: /\b(open.source|repository|license|maintainer|self.hosted|github)\b/i },
+  { name: "Cloud and infrastructure", pattern: /\b(cloud|serverless|worker|compute|database|hosting|infrastructure|network|cdn|edge)\b/i },
+  { name: "Robotics and hardware", pattern: /\b(robot|robotics|chip|gpu|processor|semiconductor|hardware|device)\b/i },
+  { name: "Consumer technology", pattern: /\b(phone|laptop|browser|consumer|android|ios|smartphone|gadget)\b/i },
+  { name: "Startups and business", pattern: /\b(startup|funding|valuation|acquisition|business|company|revenue|product launch)\b/i },
+  { name: "Science and research", pattern: /\b(research|paper|scientist|experiment|study|benchmark|dataset)\b/i },
+  { name: "Creator economy", pattern: /\b(creator|youtube|instagram|social media|content|video|monetiz|newsletter)\b/i },
+  { name: "Web and browsers", pattern: /\b(browser|web platform|html|css|javascript|typescript|webassembly|webgpu)\b/i }
 ];
 
 export function topicForStory(story: ResearchStory): string {
-  const text = `${story.title} ${story.summary}`;
+  const text = \`\${story.title} \${story.summary}\`;
   return TOPICS.find(topic => topic.pattern.test(text))?.name ?? "Tech discoveries";
 }
 
 function normalizedTitle(story: ResearchStory): string {
-  return story.title.toLowerCase().replace(/https?:\\/\\/\\S+/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  return story.title.toLowerCase().replace(/https?:\/\/\S+/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function similarity(a: ResearchStory, b: ResearchStory): number {
@@ -42,7 +42,7 @@ export function selectDiverseStories(stories: ResearchStory[], limit = 3): Resea
     let bestIndex = -1;
     let bestValue = -Infinity;
     remaining.forEach((story, index) => {
-      if (selected.some(previous => previous.url.replace(/\\/$/, "").toLowerCase() === story.url.replace(/\\/$/, "").toLowerCase())) return;
+      if (selected.some(previous => previous.url.replace(/\/$/, "").toLowerCase() === story.url.replace(/\/$/, "").toLowerCase())) return;
       const topic = topicForStory(story);
       const source = story.source.toLowerCase();
       const nearDuplicatePenalty = selected.reduce((penalty, previous) => Math.max(penalty, similarity(story, previous)), 0) * 8;
