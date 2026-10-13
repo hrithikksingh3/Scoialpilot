@@ -53,7 +53,7 @@ Signals: ${story.matchedSignals.join(", ")}`;
       if (!response.ok) throw new Error(`OpenRouter request failed (HTTP ${response.status}): ${payload.error?.message ?? "unknown provider error"}`);
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error("OpenRouter returned no content.");
-      const cleaned = content.trim().replace(/^```(?:json)?\\s*/i, "").replace(/\\s*```$/, "");
+      const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
       let parsed: unknown;
       try { parsed = JSON.parse(cleaned) as unknown; }
       catch {
