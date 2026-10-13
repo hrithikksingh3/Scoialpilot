@@ -25,6 +25,9 @@ export default function handler(req: IncomingMessage & { query?: Record<string, 
   const hook = read("title", "The tech worth knowing", 150);
   const category = read("category", "TECH SIGNAL", 32).toUpperCase();
   const topic = read("topic", "technology", 32).toLowerCase();
+  const rawImage = read("image", "", 1200);
+  let sourceImage = "";
+  try { const parsed = new URL(rawImage); if (parsed.protocol === "https:") sourceImage = parsed.href; } catch { /* no source image */ }
   const lines = wrap(hook, 22, 5);
   const headline = lines.map((line, i) =>
     `<text x="76" y="${300 + i * 75}" font-size="61" font-weight="780" letter-spacing="-2" fill="#ffffff">${esc(line)}</text>`
@@ -38,7 +41,9 @@ export default function handler(req: IncomingMessage & { query?: Record<string, 
     <filter id="soft"><feGaussianBlur stdDeviation="22"/></filter>
   </defs>
   <rect width="1080" height="1350" fill="url(#bg)"/>
-  <circle cx="880" cy="600" r="350" fill="url(#glow)" filter="url(#soft)"/>
+  ${sourceImage ? `<image href="${esc(sourceImage)}" x="0" y="0" width="1080" height="820" preserveAspectRatio="xMidYMid slice"/>` : ""}
+  ${sourceImage ? `<rect x="0" y="0" width="1080" height="860" fill="#080914" fill-opacity=".48"/><path d="M0 500 Q450 430 1080 650V920H0Z" fill="url(#bg)" fill-opacity=".94"/>` : ""}
+  ${sourceImage ? "" : `<circle cx="880" cy="600" r="350" fill="url(#glow)" filter="url(#soft)"/>`}
   <path d="M0 720 Q320 610 560 760 T1080 700M0 760 Q320 650 560 800 T1080 740" fill="none" stroke="${accent}" stroke-opacity=".16" stroke-width="2"/>
   <rect x="64" y="62" width="14" height="14" rx="4" fill="${accent}"/>
   <text x="96" y="78" font-family="Arial,sans-serif" font-size="27" font-weight="800" letter-spacing="6" fill="#f5f3ff">CODERSVOICE</text>
@@ -47,7 +52,7 @@ export default function handler(req: IncomingMessage & { query?: Record<string, 
   <text x="88" y="163" font-family="Arial,sans-serif" font-size="18" font-weight="700" letter-spacing="3" fill="#f3e8ff">${esc(category.slice(0, 27))}</text>
   ${headline}
   <text x="76" y="${Math.min(710, 350 + lines.length * 75)}" font-family="Arial,sans-serif" font-size="25" fill="#d8ccff">Here’s why developers should care.</text>
-  <circle cx="800" cy="845" r="205" fill="url(#glow)" opacity=".75"/>
+  ${sourceImage ? "" : `<circle cx="800" cy="845" r="205" fill="url(#glow)" opacity=".75"/>`}
   <circle cx="800" cy="845" r="164" fill="#111126" fill-opacity=".48" stroke="${accent}" stroke-opacity=".72" stroke-width="3"/>
   <circle cx="800" cy="845" r="124" fill="none" stroke="${accent}" stroke-opacity=".46" stroke-width="2"/>
   <ellipse cx="800" cy="845" rx="68" ry="164" fill="none" stroke="${accent}" stroke-opacity=".4" stroke-width="2"/>
