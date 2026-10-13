@@ -18,9 +18,9 @@ export async function generateWithOpenRouter(story: ResearchStory): Promise<Cont
   }
   if (process.env.ALLOW_PAID_AI === "true") throw new Error("Paid AI is disabled by Scoialpilot safety policy.");
 
-  const prompt = `Create accurate social drafts using only this source. Never invent facts. Return only JSON:
+  const prompt = `Create punchy, human social drafts using only this source. Never invent facts. Avoid press-release language, textbook paragraphs, filler intros, and repeating the headline. Start with a curiosity hook, surprising implication, practical takeaway, or specific question. Use short lines, concrete language and varied rhythm. Hooks under 12 words; captions ideally 30-70 words and never over 100. Each platform must use a different angle. Threads: conversational and punchy. Facebook: relatable and discussion-friendly. LinkedIn: practical insight, not corporate PR. Avoid "game-changer", "revolutionary", "in today’s digital world", fake urgency and generic "like and share" CTAs. Include source URL at the end. Return only JSON:
 {"angle":"...","factualClaims":["..."],"platforms":[{"platform":"threads","hook":"...","caption":"...","callToAction":"...","hashtags":["..."]},{"platform":"facebook","hook":"...","caption":"...","callToAction":"...","hashtags":["..."]},{"platform":"linkedin","hook":"...","caption":"...","callToAction":"...","hashtags":["..."]}]}
-Threads should be concise and conversational; Facebook discussion-friendly; LinkedIn professional. Use 3-5 relevant hashtags and include the source URL in captions. Drafts are for review only.
+Each platform must be distinct, concise and skimmable, with 3-5 relevant hashtags. Do not make unsupported claims. Drafts are for review only.
 Title: ${story.title}
 Source: ${story.source}
 URL: ${story.url}
