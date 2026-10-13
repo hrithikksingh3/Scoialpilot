@@ -27,7 +27,7 @@ function firstTag(block: string, names: string[]): string {
   return "";
 }
 
-function parseItems(xml: string): Array<{ title: string; url: string; date: string; summary: string }> {
+function parseItems(xml: string): Array<{ title: string; url: string; date: string; summary: string; imageUrl?: string }> {
   const blocks = xml.match(/<(item|entry)\b[^>]*>[\s\S]*?<\/\1\s*>/gi) ?? [];
   return blocks.map((block) => {
     const title = firstTag(block, ["title"]);
@@ -36,7 +36,9 @@ function parseItems(xml: string): Array<{ title: string; url: string; date: stri
     const url = href || firstTag(block, ["link", "guid", "id"]);
     const date = firstTag(block, ["pubDate", "published", "updated", "date"]);
     const summary = firstTag(block, ["description", "summary", "content:encoded", "content"]);
-    return { title, url: url.trim(), date, summary };
+    const imageMatch = block.match(/<(?:media:content|media:thumbnail|enclosure)\b([^>]*)\/?\s*>/i);
+    const imageUrl = imageMatch?.[1]?.match(/(?:url|href)=["']([^"']+)["']/i)?.[1];
+    return { title, url: url.trim(), date, summary, ...(imageUrl && /^https:\/\//i.test(imageUrl) ? { imageUrl } : {}) };
   }).filter((item) => item.title.length > 0 && /^https?:\/\//i.test(item.url));
 }
 
@@ -57,6 +59,7 @@ export async function fetchRssSource(source: ResearchSource): Promise<ResearchSt
       source: source.name,
       publishedAt: item.date && !Number.isNaN(Date.parse(item.date)) ? new Date(item.date).toISOString() : null,
       summary: item.summary.slice(0, 1200),
+      ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
       score: 0,
       matchedSignals: []
     }));
