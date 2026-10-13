@@ -63,9 +63,13 @@ export default async function handler(req:Req,res:Res){
    const [cfg,available,queue]=await Promise.all([
     pool.query('SELECT posts_per_day AS "postsPerDay", start_at_local AS "startAtLocal", interval_hours AS "intervalHours", timezone FROM content_publish_schedule WHERE id=1'),
     pool.query("SELECT COUNT(*)::int AS count FROM content_drafts d WHERE d.review_status='approved' AND NOT EXISTS (SELECT 1 FROM content_publish_queue q WHERE q.draft_id=d.id AND q.status IN ('scheduled','published'))"),
-    pool.query(`SELECT q.draft_id AS id,d.source_title AS title,q.scheduled_at,q.timezone,q.status FROM content_publish_queue q JOIN content_drafts d ON d.id=q.draft_id WHERE q.status='scheduled' ORDER BY q.scheduled_at LIMIT 50`)
+    pool.query(`SELECT q.draft_id AS id,d.source_title AS title,q.scheduled_at,q.timezone,q.status,
+      COALESCE((SELECT json_agg(json_build_object('platform',x.platform,'status',x.status,'postId',x.platform_post_id,'error',x.last_error) ORDER BY x.platform)
+        FROM content_publish_deliveries x WHERE x.queue_id=q.id),'[]'::json) AS deliveries
+      FROM content_publish_queue q JOIN content_drafts d ON d.id=q.draft_id
+      ORDER BY q.scheduled_at DESC LIMIT 50`)
    ]);
-   return res.status(200).json({schedule:cfg.rows[0],approvedAvailable:Number(available.rows[0].count),queue:queue.rows.map(q=>({id:q.id,title:q.title,status:q.status,scheduledAt:q.scheduled_at,scheduledLocal:formatLocal(new Date(q.scheduled_at),q.timezone)}))});
+   return res.status(200).json({schedule:cfg.rows[0],approvedAvailable:Number(available.rows[0].count),queue:queue.rows.map(q=>({id:q.id,title:q.title,status:q.status,scheduledAt:q.scheduled_at,scheduledLocal:formatLocal(new Date(q.scheduled_at),q.timezone),deliveries:q.deliveries||[]}))});
   }
   if(req.method!=="PUT"){res.setHeader("Allow","GET, PUT");return fail(res,405,"Method not allowed");}
   if(!req.body||typeof req.body!=="object")return fail(res,400,"Invalid request body");
