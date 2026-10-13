@@ -8,6 +8,7 @@ export interface PlatformDraft {
   caption: string;
   callToAction: string;
   hashtags: string[];
+  visualUrl: string;
 }
 
 export interface ContentDraft {
