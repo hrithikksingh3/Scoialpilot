@@ -45,8 +45,9 @@ export function validateDraftPayload(value: unknown, story: ResearchStory, now =
   if (!isRecord(value)) throw new Error("Invalid AI response: expected an object");
   if (!Array.isArray(value.platforms)) throw new Error("Invalid AI response: platforms must be an array");
   const expected: ContentPlatform[] = ["threads", "facebook", "linkedin"];
+  const platformValues: unknown[] = value.platforms;
   const platforms = expected.map((platform) => {
-    const found = value.platforms?.find((item: unknown) => isRecord(item) && item.platform === platform);
+    const found = platformValues.find((item: unknown) => isRecord(item) && item.platform === platform);
     if (!found) throw new Error(`Invalid AI response: missing ${platform} draft`);
     return validatePlatformDraft(found, platform);
   });
