@@ -14,7 +14,7 @@ async function main(): Promise<void> {
   if (!Array.isArray(report.stories) || report.stories.length === 0) throw new Error("No research stories found. Run npm run research first.");
 
   const requested = Number.parseInt(process.env.DRAFT_LIMIT || "3", 10);
-  const limit = Number.isFinite(requested) ? Math.max(1, Math.min(3, requested)) : 3;
+  const limit = Number.isFinite(requested) ? Math.max(1, Math.min(5, requested)) : 2;
   const drafts: Array<{ provider: "gemini" | "openrouter"; draft: ContentDraft }> = [];
   const failures: Array<{ sourceUrl: string; provider: string; error: string }> = [];
 
