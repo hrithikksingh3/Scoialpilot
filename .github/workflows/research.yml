@@ -1,0 +1,42 @@
+name: Research Pipeline
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Twice daily; tune after measuring runtime and free-tier usage.
+    - cron: "17 3,15 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-pipeline
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run research pipeline
+        run: npm run research
+        env:
+          NODE_ENV: production
