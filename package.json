@@ -2,11 +2,12 @@
   "name": "scoialpilot",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Cost-conscious social content research and publishing engine for Codersvoice",
   "engines": { "node": ">=20" },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "tsx --test tests/*.test.ts",
     "research": "tsx src/research/run.ts"
   },
   "dependencies": {},
