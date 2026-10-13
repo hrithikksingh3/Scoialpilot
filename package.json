@@ -12,7 +12,8 @@
     "test": "tsx --test tests/*.test.ts",
     "research": "tsx src/research/run.ts",
     "generate-drafts": "tsx src/content/run.ts",
-    "list-drafts": "tsx src/content/list-drafts.ts"
+    "list-drafts": "tsx src/content/list-drafts.ts",
+    "review-draft": "tsx src/content/review-draft.ts"
   },
   "dependencies": {
     "pg": "^8.16.3"
