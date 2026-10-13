@@ -63,3 +63,17 @@ Do not put database credentials in source files, workflow YAML, issue comments, 
 - No social publishing is enabled in this milestone.
 - If `DATABASE_URL` is not configured, the report is still generated and uploaded as an artifact; it is not stored permanently in Postgres.
 - Provider free tiers can change. The architecture should stop or queue work instead of silently opting into paid usage.
+
+## Deploy the visual approval dashboard (Vercel)
+
+The dashboard is a static frontend backed by protected Vercel serverless API routes. It does not connect to Neon from the browser.
+
+1. Import this GitHub repository into Vercel: https://vercel.com/new
+2. Keep the repository root as the project root and deploy the `main` branch.
+3. In Vercel Project Settings → Environment Variables, add:
+   - `DATABASE_URL`: Neon connection string (server-side only; never use a `NEXT_PUBLIC_` prefix).
+   - `DASHBOARD_ACCESS_TOKEN`: a long random secret used to unlock the dashboard.
+4. Redeploy after adding the variables.
+5. Open the deployed site URL, enter the access token, and review drafts. The dashboard supports editing captions, approving, and rejecting. Approval records a review decision only; publishing remains disabled.
+
+Keep the Vercel deployment private to people who know the access token. If the token is missing, the API fails closed. Use Neon pooled connection string if available. Dashboard data is fetched from the latest 100 drafts.
