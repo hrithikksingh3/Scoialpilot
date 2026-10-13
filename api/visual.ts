@@ -3,21 +3,71 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 function esc(value: string): string {
   return value.replace(/[&<>"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char] ?? char));
 }
+function wrap(text: string, max = 22, maxLines = 5): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.replace(/\s+/g, " ").trim().split(" ")) {
+    if ((line + " " + word).trim().length > max && line) { lines.push(line); line = word; }
+    else line = (line + " " + word).trim();
+  }
+  if (line) lines.push(line);
+  if (lines.length > maxLines) {
+    const kept = lines.slice(0, maxLines);
+    kept[maxLines - 1] = kept[maxLines - 1].replace(/[.!?…]*$/, "") + "…";
+    return kept;
+  }
+  return lines;
+}
 export default function handler(req: IncomingMessage & { query?: Record<string, string | string[] | undefined> }, res: ServerResponse) {
   const q = req.query ?? {};
-  const title = String(Array.isArray(q.title) ? q.title[0] : q.title ?? "The tech worth knowing").slice(0, 110);
-  const category = String(Array.isArray(q.category) ? q.category[0] : q.category ?? "CODERSVOICE TECH BRIEF").slice(0, 34).toUpperCase();
-  const lines: string[] = [];
-  let current = "";
-  for (const word of title.split(/\s+/)) {
-    if ((current + " " + word).trim().length > 27) { lines.push(current); current = word; }
-    else current = (current + " " + word).trim();
-  }
-  if (current) lines.push(current);
-  const titleSvg = lines.slice(0, 3).map((line, i) => `<text x="72" y="${255 + i * 65}" font-size="49" font-weight="750" fill="#ffffff">${esc(line)}</text>`).join("");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b0b16"/><stop offset="1" stop-color="#31205f"/></linearGradient><radialGradient id="glow"><stop stop-color="#8b5cf6" stop-opacity=".65"/><stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient></defs><rect width="1200" height="630" rx="0" fill="url(#bg)"/><circle cx="1020" cy="80" r="360" fill="url(#glow)"/><circle cx="1030" cy="430" r="155" fill="none" stroke="#a78bfa" stroke-opacity=".3" stroke-width="2"/><circle cx="1030" cy="430" r="105" fill="none" stroke="#a78bfa" stroke-opacity=".45" stroke-width="2"/><path d="M850 430h360M1030 250v360" stroke="#a78bfa" stroke-opacity=".25"/><rect x="72" y="72" width="14" height="14" rx="4" fill="#a78bfa"/><text x="100" y="85" font-size="22" font-weight="700" letter-spacing="4" fill="#c4b5fd">CODERSVOICE</text><rect x="72" y="143" width="430" height="38" rx="19" fill="#8b5cf6" fill-opacity=".2" stroke="#a78bfa" stroke-opacity=".5"/><text x="91" y="168" font-size="16" font-weight="700" letter-spacing="2" fill="#ddd6fe">${esc(category)}</text>${titleSvg}<text x="72" y="520" font-size="21" fill="#c4b5fd">The signal behind the headline.</text><path d="M72 558H1128" stroke="#a78bfa" stroke-opacity=".45"/><text x="72" y="592" font-size="17" fill="#a1a1b5">SCOIALPILOT  /  RESEARCH-LED • HUMAN-APPROVED</text><text x="1085" y="105" font-size="52" fill="#c4b5fd">✳</text></svg>`;
+  const read = (key: string, fallback: string, max: number) =>
+    String(Array.isArray(q[key]) ? q[key]?.[0] : q[key] ?? fallback).slice(0, max);
+  const hook = read("title", "The tech worth knowing", 150);
+  const category = read("category", "TECH SIGNAL", 32).toUpperCase();
+  const topic = read("topic", "technology", 32).toLowerCase();
+  const lines = wrap(hook, 22, 5);
+  const headline = lines.map((line, i) =>
+    `<text x="76" y="${300 + i * 75}" font-size="61" font-weight="780" letter-spacing="-2" fill="#ffffff">${esc(line)}</text>`
+  ).join("");
+  const accent = topic.includes("security") ? "#fb7185" : topic.includes("cloud") ? "#38bdf8" : topic.includes("open") ? "#4ade80" : "#a78bfa";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#080914"/><stop offset=".52" stop-color="#17102e"/><stop offset="1" stop-color="#321d63"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="${accent}" stop-opacity=".72"/><stop offset="1" stop-color="${accent}" stop-opacity="0"/></radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#24213e" stop-opacity=".96"/><stop offset="1" stop-color="#0b0c19" stop-opacity=".96"/></linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="22"/></filter>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="880" cy="600" r="350" fill="url(#glow)" filter="url(#soft)"/>
+  <path d="M0 720 Q320 610 560 760 T1080 700M0 760 Q320 650 560 800 T1080 740" fill="none" stroke="${accent}" stroke-opacity=".16" stroke-width="2"/>
+  <rect x="64" y="62" width="14" height="14" rx="4" fill="${accent}"/>
+  <text x="96" y="78" font-family="Arial,sans-serif" font-size="27" font-weight="800" letter-spacing="6" fill="#f5f3ff">CODERSVOICE</text>
+  <text x="1010" y="78" text-anchor="end" font-family="Arial,sans-serif" font-size="16" letter-spacing="3" fill="#c4b5fd">TECH SIGNAL</text>
+  <rect x="64" y="132" width="570" height="48" rx="24" fill="${accent}" fill-opacity=".16" stroke="${accent}" stroke-opacity=".72"/>
+  <text x="88" y="163" font-family="Arial,sans-serif" font-size="18" font-weight="700" letter-spacing="3" fill="#f3e8ff">${esc(category.slice(0, 27))}</text>
+  ${headline}
+  <text x="76" y="${Math.min(710, 350 + lines.length * 75)}" font-family="Arial,sans-serif" font-size="25" fill="#d8ccff">Here’s why developers should care.</text>
+  <circle cx="800" cy="845" r="205" fill="url(#glow)" opacity=".75"/>
+  <circle cx="800" cy="845" r="164" fill="#111126" fill-opacity=".48" stroke="${accent}" stroke-opacity=".72" stroke-width="3"/>
+  <circle cx="800" cy="845" r="124" fill="none" stroke="${accent}" stroke-opacity=".46" stroke-width="2"/>
+  <ellipse cx="800" cy="845" rx="68" ry="164" fill="none" stroke="${accent}" stroke-opacity=".4" stroke-width="2"/>
+  <ellipse cx="800" cy="845" rx="164" ry="64" fill="none" stroke="${accent}" stroke-opacity=".45" stroke-width="2" transform="rotate(-25 800 845)"/>
+  <path d="M640 845H960M800 685V1005" stroke="${accent}" stroke-opacity=".25"/>
+  <circle cx="702" cy="756" r="7" fill="#fff"/><circle cx="898" cy="805" r="8" fill="${accent}"/><circle cx="760" cy="964" r="6" fill="#fff"/>
+  <g transform="translate(60 1000) rotate(-3 450 110)">
+    <rect width="960" height="205" rx="26" fill="url(#glass)" stroke="${accent}" stroke-opacity=".85" stroke-width="2"/>
+    <circle cx="34" cy="32" r="6" fill="#fb7185"/><circle cx="56" cy="32" r="6" fill="#fbbf24"/><circle cx="78" cy="32" r="6" fill="#4ade80"/>
+    <text x="36" y="78" font-family="monospace" font-size="18" fill="${accent}">// THE TAKEAWAY</text>
+    <text x="36" y="124" font-family="Arial,sans-serif" font-size="29" font-weight="700" fill="#ffffff">New capability. New possibilities.</text>
+    <text x="36" y="164" font-family="Arial,sans-serif" font-size="22" fill="#c4b5fd">Get the context before the hype.</text>
+  </g>
+  <path d="M64 1250H1016" stroke="#a78bfa" stroke-opacity=".48"/>
+  <text x="64" y="1292" font-family="Arial,sans-serif" font-size="17" letter-spacing="3" fill="#c4b5fd">RESEARCH-LED • HUMAN-APPROVED</text>
+  <text x="1016" y="1292" text-anchor="end" font-family="Arial,sans-serif" font-size="17" fill="#c4b5fd">@CODERSVOICE</text>
+  </svg>`;
   res.statusCode = 200;
   res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=86400");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.end(svg);
 }
