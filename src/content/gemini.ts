@@ -30,14 +30,15 @@ function stringArray(value: unknown, field: string, max: number): string[] {
   return value.map((item) => item.trim()).filter(Boolean).slice(0, max);
 }
 
-export function validatePlatformDraft(value: unknown, expectedPlatform: ContentPlatform): PlatformDraft {
+export function validatePlatformDraft(value: unknown, expectedPlatform: ContentPlatform, visualUrl: string): PlatformDraft {
   if (!isRecord(value) || value.platform !== expectedPlatform) throw new Error("Invalid AI response: platform mismatch");
   return {
     platform: expectedPlatform,
     hook: nonEmptyString(value.hook, "hook"),
     caption: nonEmptyString(value.caption, "caption"),
     callToAction: nonEmptyString(value.callToAction, "callToAction"),
-    hashtags: stringArray(value.hashtags, "hashtags", 5)
+    hashtags: stringArray(value.hashtags, "hashtags", 5),
+    visualUrl
   };
 }
 
@@ -49,7 +50,10 @@ export function validateDraftPayload(value: unknown, story: ResearchStory, now =
   const platforms = expected.map((platform) => {
     const found = platformValues.find((item: unknown) => isRecord(item) && item.platform === platform);
     if (!found) throw new Error(`Invalid AI response: missing ${platform} draft`);
-    return validatePlatformDraft(found, platform);
+    const hook = isRecord(found) && typeof found.hook === "string" ? found.hook : story.title;
+    const angle = typeof value.angle === "string" ? value.angle : "Tech Signal";
+    const visualUrl = "https://scoialpilot.vercel.app/api/visual?title=" + encodeURIComponent(hook) + "&category=" + encodeURIComponent(angle) + "&topic=" + encodeURIComponent(story.source);
+    return validatePlatformDraft(found, platform, visualUrl);
   });
   return {
     id: `draft-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
