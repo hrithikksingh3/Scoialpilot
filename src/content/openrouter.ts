@@ -38,9 +38,10 @@ Signals: ${story.matchedSignals.join(", ")}`;
         { role: "user", content: prompt }
       ],
       temperature: 0.4,
-      max_tokens: 1800
+      max_tokens: 2200,
+      response_format: { type: "json_object" }
     }),
-    signal: AbortSignal.timeout(30_000)
+    signal: AbortSignal.timeout(60_000)
   });
   const payload = await response.json() as ChatResponse;
   if (!response.ok) throw new Error(`OpenRouter request failed (HTTP ${response.status}): ${payload.error?.message ?? "unknown provider error"}`);
