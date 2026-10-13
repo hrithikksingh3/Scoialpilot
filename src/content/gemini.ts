@@ -1,7 +1,7 @@
 import type { ResearchStory } from "../research/types.js";
 import type { ContentDraft, ContentPlatform, DraftGenerationResult, PlatformDraft } from "./types.js";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.8-flash";
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 interface GeminiResponse {
