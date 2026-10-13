@@ -16,7 +16,7 @@ const TOPICS: Array<{ name: string; pattern: RegExp }> = [
 ];
 
 export function topicForStory(story: ResearchStory): string {
-  const text = \`\${story.title} \${story.summary}\`;
+  const text = `${story.title} ${story.summary}`;
   return TOPICS.find(topic => topic.pattern.test(text))?.name ?? "Tech discoveries";
 }
 
