@@ -18,7 +18,10 @@ Scoialpilot is a free-first content research, AI-assisted drafting, review, and 
 - [x] CI type-check and test workflow
 - [x] Opt-in due-queue worker and text-only adapters for Threads, Facebook Pages, and LinkedIn Company Pages
 - [ ] Add platform credentials/permissions and verify each platform with a controlled test post
-- [x] Per-platform delivery ledger with post IDs, attempts, error states, and ambiguous-outcome protection\n- [x] Dashboard queue view with per-platform delivery statuses, errors, and returned post IDs\n- [ ] Queue cancellation/rescheduling controls
+- [x] Per-platform delivery ledger with post IDs, attempts, error states, and ambiguous-outcome protection
+- [x] Dashboard queue view with per-platform delivery statuses, errors, and returned post IDs
+- [x] Independent Threads/Facebook/LinkedIn publishing switches persisted in Neon; all default off
+- [ ] Queue cancellation/rescheduling controls
 
 **Important:** The worker and text-post adapters are implemented, but real publishing remains opt-in and is not verified until valid platform credentials and permissions are configured. Queueing alone is not publishing. Keep both repository variables `PUBLISHING_ENABLED=false` and `PUBLISH_DRY_RUN=true` until you intentionally enable live posting. The worker will not publish with the default settings.
 
@@ -54,7 +57,9 @@ Apply migrations in order if not already created:
 
 1. database/schema/001_research.sql
 2. database/schema/002_content_drafts.sql
-3. database/schema/003_publish_queue.sql\n4. database/schema/004_publish_deliveries.sql
+3. database/schema/003_publish_queue.sql
+4. database/schema/004_publish_deliveries.sql
+5. database/schema/005_platform_settings.sql
 
 The dashboard API creates schedule/queue tables if missing; the publishing worker creates its delivery ledger if missing. Migrations are included to make the schema reproducible.
 
@@ -87,4 +92,8 @@ Draft generation and publishing queue reservation are separate:
 - Research uses public feeds/endpoints where possible.
 - Do not add paid APIs, hosted workers, or billing-dependent services as critical-path dependencies without explicit approval.
 - Keep tokens in Vercel environment variables or GitHub Actions secrets.
-- The worker processes only due, approved queue items. Per-platform delivery state is recorded independently.\n- A network timeout or ambiguous platform response is marked `unknown` and is not automatically retried, to reduce duplicate-post risk. Check the platform manually before any retry.\n- Initial adapters publish text only; visual/image upload is not implemented.\n- Real publishing must remain disabled until platform permissions, token validity, and controlled end-to-end posts are verified.
+- The worker processes only due, approved queue items. Per-platform delivery state is recorded independently.
+- Platform switches are controlled in the dashboard and persisted in Neon. All default off; only checked platforms are eligible. Missing settings fail closed.
+- A network timeout or ambiguous platform response is marked `unknown` and is not automatically retried, to reduce duplicate-post risk. Check the platform manually before any retry.
+- Initial adapters publish text only; visual/image upload is not implemented.
+- Real publishing must remain disabled until platform permissions, token validity, and controlled end-to-end posts are verified.
