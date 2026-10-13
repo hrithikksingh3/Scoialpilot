@@ -1,4 +1,4 @@
-# Scoialpilot — Codersvoice Automation Engine
+# Scoialpilot — Social Automation Engine
 
 A cost-conscious content research and publishing engine for Codersvoice. The current milestone researches technology stories from public RSS feeds, scores and deduplicates them, writes a JSON report, and can persist the results to PostgreSQL.
 
