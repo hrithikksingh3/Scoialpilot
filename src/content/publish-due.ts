@@ -109,7 +109,7 @@ async function publishLinkedIn(text: string): Promise<string> {
 async function publish(platform: Platform, draft: PlatformDraft): Promise<string> {
   const text = textFor(draft);
   if (!text) throw new Error("Caption is empty");
-  if (text.length > 3000 && platform === "threads") throw new Error("Threads text exceeds the supported 500-character limit");
+  if (text.length > 500 && platform === "threads") throw new Error("Threads text exceeds the supported 500-character limit");
   if (platform === "threads") return publishThreads(text);
   if (platform === "facebook") return publishFacebook(text);
   return publishLinkedIn(text);
@@ -183,8 +183,8 @@ async function finalizeQueue(queueId: string): Promise<void> {
   await pool.query(
     `UPDATE content_publish_queue q SET
        status=CASE
-         WHEN EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status IN ('failed','unknown')) THEN 'failed'
          WHEN EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status IN ('pending','processing')) THEN 'scheduled'
+         WHEN EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status IN ('failed','unknown')) THEN 'failed'
          WHEN EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status='published')
            AND NOT EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status NOT IN ('published','skipped')) THEN 'published'
          ELSE 'scheduled' END,
