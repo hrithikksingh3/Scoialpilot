@@ -34,6 +34,11 @@ jobs:
         run: npm run typecheck
       - name: Run tests
         run: npm test
+      - name: Fetch latest research report
+        run: npm run research
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - name: Generate and save drafts
         run: npm run generate-drafts
         env:
