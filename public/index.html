@@ -21,7 +21,8 @@
 <script>
 const $=id=>document.getElementById(id);let token=sessionStorage.getItem('scoialpilot_token')||'';let status='pending_approval';let drafts=[];
 function auth(){return {'authorization':'Bearer '+token,'content-type':'application/json'}}
-function showApp(){ $('login').classList.toggle('hide',!!token);$('app').classList.toggle('hide',!token);$('refresh').classList.toggle('hide',!token);$('scheduleJump').classList.toggle('hide',!token);if(token)load()}\n$('scheduleJump').onclick=()=> $('schedulerPanel').scrollIntoView({behavior:'smooth',block:'start'});
+function showApp(){ $('login').classList.toggle('hide',!!token);$('app').classList.toggle('hide',!token);$('refresh').classList.toggle('hide',!token);$('scheduleJump').classList.toggle('hide',!token);if(token)load()}
+$('scheduleJump').onclick=()=> $('schedulerPanel').scrollIntoView({behavior:'smooth',block:'start'});
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();token=$('token').value.trim();sessionStorage.setItem('scoialpilot_token',token);showApp()});
 $('logout').onclick=()=>{token='';sessionStorage.removeItem('scoialpilot_token');showApp()};
 $('refresh').onclick=load;
