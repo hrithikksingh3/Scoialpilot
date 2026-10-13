@@ -18,7 +18,7 @@ Scoialpilot is a free-first content research, AI-assisted drafting, review, and 
 - [x] CI type-check and test workflow
 - [x] Opt-in due-queue worker and text-only adapters for Threads, Facebook Pages, and LinkedIn Company Pages
 - [ ] Add platform credentials/permissions and verify each platform with a controlled test post
-- [x] Per-platform delivery ledger with post IDs, attempts, error states, and ambiguous-outcome protection\n- [ ] Queue cancellation/rescheduling controls and dashboard delivery reporting
+- [x] Per-platform delivery ledger with post IDs, attempts, error states, and ambiguous-outcome protection\n- [x] Dashboard queue view with per-platform delivery statuses, errors, and returned post IDs\n- [ ] Queue cancellation/rescheduling controls
 
 **Important:** The worker and text-post adapters are implemented, but real publishing remains opt-in and is not verified until valid platform credentials and permissions are configured. Queueing alone is not publishing. Keep both repository variables `PUBLISHING_ENABLED=false` and `PUBLISH_DRY_RUN=true` until you intentionally enable live posting. The worker will not publish with the default settings.
 
