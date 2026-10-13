@@ -28,7 +28,7 @@ export default function handler(req: IncomingMessage & { query?: Record<string, 
   const rawImage = read("image", "", 1200);
   let sourceImage = "";
   try { const parsed = new URL(rawImage); if (parsed.protocol === "https:") sourceImage = parsed.href; } catch { /* no source image */ }
-  const lines = wrap(hook, 22, 5);
+  const lines = wrap(hook, 25, 4);
   const headline = lines.map((line, i) =>
     `<text x="76" y="${300 + i * 75}" font-size="61" font-weight="780" letter-spacing="-2" fill="#ffffff">${esc(line)}</text>`
   ).join("");
@@ -44,7 +44,7 @@ export default function handler(req: IncomingMessage & { query?: Record<string, 
   ${sourceImage ? `<image href="${esc(sourceImage)}" x="0" y="0" width="1080" height="820" preserveAspectRatio="xMidYMid slice"/>` : ""}
   ${sourceImage ? `<rect x="0" y="0" width="1080" height="860" fill="#080914" fill-opacity=".48"/><path d="M0 500 Q450 430 1080 650V920H0Z" fill="url(#bg)" fill-opacity=".94"/>` : ""}
   ${sourceImage ? "" : `<circle cx="880" cy="600" r="350" fill="url(#glow)" filter="url(#soft)"/>`}
-  <path d="M0 720 Q320 610 560 760 T1080 700M0 760 Q320 650 560 800 T1080 740" fill="none" stroke="${accent}" stroke-opacity=".16" stroke-width="2"/>
+  <path d="M64 220H240" stroke="${accent}" stroke-width="5"/>
   <rect x="64" y="62" width="14" height="14" rx="4" fill="${accent}"/>
   <text x="96" y="78" font-family="Arial,sans-serif" font-size="27" font-weight="800" letter-spacing="6" fill="#f5f3ff">CODERSVOICE</text>
   <text x="1010" y="78" text-anchor="end" font-family="Arial,sans-serif" font-size="16" letter-spacing="3" fill="#c4b5fd">TECH SIGNAL</text>
@@ -52,20 +52,10 @@ export default function handler(req: IncomingMessage & { query?: Record<string, 
   <text x="88" y="163" font-family="Arial,sans-serif" font-size="18" font-weight="700" letter-spacing="3" fill="#f3e8ff">${esc(category.slice(0, 27))}</text>
   ${headline}
   <text x="76" y="${Math.min(710, 350 + lines.length * 75)}" font-family="Arial,sans-serif" font-size="25" fill="#d8ccff">Here’s why developers should care.</text>
-  ${sourceImage ? "" : `<circle cx="800" cy="845" r="205" fill="url(#glow)" opacity=".75"/>`}
-  <circle cx="800" cy="845" r="164" fill="#111126" fill-opacity=".48" stroke="${accent}" stroke-opacity=".72" stroke-width="3"/>
-  <circle cx="800" cy="845" r="124" fill="none" stroke="${accent}" stroke-opacity=".46" stroke-width="2"/>
-  <ellipse cx="800" cy="845" rx="68" ry="164" fill="none" stroke="${accent}" stroke-opacity=".4" stroke-width="2"/>
-  <ellipse cx="800" cy="845" rx="164" ry="64" fill="none" stroke="${accent}" stroke-opacity=".45" stroke-width="2" transform="rotate(-25 800 845)"/>
-  <path d="M640 845H960M800 685V1005" stroke="${accent}" stroke-opacity=".25"/>
-  <circle cx="702" cy="756" r="7" fill="#fff"/><circle cx="898" cy="805" r="8" fill="${accent}"/><circle cx="760" cy="964" r="6" fill="#fff"/>
-  <g transform="translate(60 1000) rotate(-3 450 110)">
-    <rect width="960" height="205" rx="26" fill="url(#glass)" stroke="${accent}" stroke-opacity=".85" stroke-width="2"/>
-    <circle cx="34" cy="32" r="6" fill="#fb7185"/><circle cx="56" cy="32" r="6" fill="#fbbf24"/><circle cx="78" cy="32" r="6" fill="#4ade80"/>
-    <text x="36" y="78" font-family="monospace" font-size="18" fill="${accent}">// THE TAKEAWAY</text>
-    <text x="36" y="124" font-family="Arial,sans-serif" font-size="29" font-weight="700" fill="#ffffff">New capability. New possibilities.</text>
-    <text x="36" y="164" font-family="Arial,sans-serif" font-size="22" fill="#c4b5fd">Get the context before the hype.</text>
-  </g>
+  <rect x="64" y="820" width="952" height="330" rx="8" fill="#09090f" fill-opacity=".72" stroke="${accent}" stroke-opacity=".55"/>
+  <text x="90" y="875" font-family="Arial,sans-serif" font-size="18" font-weight="700" letter-spacing="4" fill="${accent}">THE STORY IN CONTEXT</text>
+  <text x="90" y="930" font-family="Arial,sans-serif" font-size="28" fill="#ffffff">What changed — and why it matters.</text>
+  <text x="90" y="978" font-family="Arial,sans-serif" font-size="22" fill="#d8ccff">Research-led. Source-linked. Human-reviewed.</text>
   <path d="M64 1250H1016" stroke="#a78bfa" stroke-opacity=".48"/>
   <text x="64" y="1292" font-family="Arial,sans-serif" font-size="17" letter-spacing="3" fill="#c4b5fd">RESEARCH-LED • HUMAN-APPROVED</text>
   <text x="1016" y="1292" text-anchor="end" font-family="Arial,sans-serif" font-size="17" fill="#c4b5fd">@CODERSVOICE</text>
