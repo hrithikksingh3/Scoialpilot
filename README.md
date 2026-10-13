@@ -10,12 +10,13 @@ A cost-conscious content research and publishing engine for Codersvoice. The cur
 - [x] Optional PostgreSQL persistence
 - [x] GitHub Actions scheduled workflow and report artifact
 - [x] TypeScript checks and unit tests in CI
-- [ ] Neon database connection configured
-- [ ] AI-assisted, evidence-backed platform drafts
+- [x] Neon database connection configured (verify with Research Pipeline)
+- [x] AI-assisted, evidence-backed platform drafts (Gemini primary, explicitly free OpenRouter fallback)
+- [x] Neon-backed pending-approval draft queue and manual Generate Drafts workflow
 - [ ] Approval dashboard
 - [ ] Threads, Facebook Page, and LinkedIn publishing adapters
 
-Publishing is not implemented and no posts are published by the current pipeline.
+Publishing is deliberately disabled. Generated drafts are saved to the Neon `content_drafts` table with `pending_approval` status. The Generate Drafts workflow runs research first, then generates and persists drafts. No posts are published.
 
 ## Run locally
 
@@ -26,9 +27,22 @@ npm install
 npm run typecheck
 npm test
 npm run research
+# after research and required API/database environment variables are configured:
+npm run generate-drafts
+npm run list-drafts
 ```
 
 The research job writes `reports/latest.json`. If all RSS feeds fail, the job exits unsuccessfully so the failure is visible in GitHub Actions.
+
+## Generate and review drafts
+
+1. Add repository secrets `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and `DATABASE_URL`.
+2. Add repository variable `OPENROUTER_FREE_MODEL` with an available free model ID ending in `:free`. Never set a paid model here.
+3. Open **Actions → Generate Drafts → Run workflow** and choose 1–3 stories. This workflow refreshes research first, then generates drafts.
+4. The workflow saves records in Neon table `content_drafts` and uploads a `scoialpilot-drafts` JSON artifact for seven days.
+5. To inspect pending drafts locally, configure `DATABASE_URL` and run `npm run list-drafts`.
+
+The draft queue is currently database-backed; a visual web approval dashboard is not yet implemented. Publishing remains disabled.
 
 ## Enable Neon/PostgreSQL persistence
 
