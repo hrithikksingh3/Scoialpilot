@@ -10,6 +10,7 @@ export interface ResearchStory {
   source: string;
   publishedAt: string | null;
   summary: string;
+  imageUrl?: string;
   score: number;
   matchedSignals: string[];
 }
