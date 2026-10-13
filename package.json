@@ -4,11 +4,14 @@
   "private": true,
   "type": "module",
   "description": "Cost-conscious social content research and publishing engine for Codersvoice",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "research": "tsx src/research/run.ts"
+    "research": "tsx src/research/run.ts",
+    "generate-drafts": "tsx src/content/run.ts"
   },
   "dependencies": {
     "pg": "^8.16.3"
