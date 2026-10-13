@@ -72,6 +72,8 @@ export default async function handler(req:Req,res:Res){
   const body=req.body as {postsPerDay?:unknown;startAtLocal?:unknown;intervalHours?:unknown;timezone?:unknown};
   if(!Number.isInteger(body.postsPerDay)||Number(body.postsPerDay)<1||Number(body.postsPerDay)>5||typeof body.startAtLocal!=="string"||!/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/.test(body.startAtLocal)||![1,2,3,4,6,8].includes(Number(body.intervalHours))||typeof body.timezone!=="string"||body.timezone.length>80)return fail(res,400,"Choose 1–5 posts, a valid start time, an interval, and a timezone.");
   try{new Intl.DateTimeFormat("en",{timeZone:body.timezone});}catch{return fail(res,400,"Invalid timezone");}
+  const [startHour,startMinute]=body.startAtLocal.split(":").map(Number);
+  if(startHour*60+startMinute+(Number(body.postsPerDay)-1)*Number(body.intervalHours)*60>=24*60)return fail(res,400,"These intervals would push a post into the next day. Reduce the post count or interval, or choose an earlier start time.");
   const client=await pool.connect();
   try{
    await client.query("BEGIN");
