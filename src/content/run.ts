@@ -5,6 +5,7 @@ import type { ContentDraft } from "./types.js";
 import { generateDraft } from "./gemini.js";
 import { generateWithOpenRouter } from "./openrouter.js";
 import { saveDrafts } from "./persistence.js";
+import { selectDiverseStories } from "./diversity.js";
 
 async function main(): Promise<void> {
   if (process.env.ALLOW_PAID_AI === "true") throw new Error("Paid AI is disabled. Set ALLOW_PAID_AI=false.");
@@ -17,7 +18,7 @@ async function main(): Promise<void> {
   const drafts: Array<{ provider: "gemini" | "openrouter"; draft: ContentDraft }> = [];
   const failures: Array<{ sourceUrl: string; provider: string; error: string }> = [];
 
-  for (const story of report.stories.slice(0, limit)) {
+  for (const story of selectDiverseStories(report.stories, limit)) {
     try {
       drafts.push({ provider: "gemini", draft: await generateDraft(story) });
     } catch (primaryError) {
