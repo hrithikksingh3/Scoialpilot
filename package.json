@@ -1,6 +1,6 @@
 {
   "name": "scoialpilot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Cost-conscious social content research and publishing engine for Codersvoice",
@@ -10,9 +10,12 @@
     "test": "tsx --test tests/*.test.ts",
     "research": "tsx src/research/run.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
   "devDependencies": {
     "@types/node": "^22.15.30",
+    "@types/pg": "^8.15.5",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
