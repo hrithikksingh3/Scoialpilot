@@ -47,7 +47,15 @@ Signals: ${story.matchedSignals.join(", ")}`;
   const text = payload.choices?.[0]?.message?.content;
   if (!text) throw new Error("OpenRouter returned no content.");
   let parsed: unknown;
-  try { parsed = JSON.parse(text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as unknown; }
-  catch { throw new Error("OpenRouter returned invalid JSON."); }
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    parsed = JSON.parse(cleaned) as unknown;
+  } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("OpenRouter returned invalid JSON.");
+    try { parsed = JSON.parse(cleaned.slice(start, end + 1)) as unknown; }
+    catch { throw new Error("OpenRouter returned invalid JSON."); }
+  }
   return validateDraftPayload(parsed, story);
 }
