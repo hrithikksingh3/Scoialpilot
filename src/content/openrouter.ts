@@ -13,8 +13,8 @@ export async function generateWithOpenRouter(story: ResearchStory): Promise<Cont
   const apiKey = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_FREE_MODEL;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is missing.");
-  if (!model || !model.endsWith(":free")) {
-    throw new Error("Safety stop: set OPENROUTER_FREE_MODEL to a model identifier ending in :free. Paid models are not allowed.");
+  if (!model || !(model === "openrouter/free" || model.endsWith(":free"))) {
+    throw new Error("Safety stop: set OPENROUTER_FREE_MODEL to openrouter/free or a model identifier ending in :free. Paid models are not allowed.");
   }
   if (process.env.ALLOW_PAID_AI === "true") throw new Error("Paid AI is disabled by Scoialpilot safety policy.");
 
