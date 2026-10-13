@@ -14,7 +14,21 @@ type DueRow = { queue_id: string; draft_id: string; scheduled_at: Date; review_s
 type Delivery = { id: string; queue_id: string; draft_id: string; platform: Platform; attempts: number };
 
 const env = (key: string) => process.env[key]?.trim() ?? "";
-const enabledPlatforms: Platform[] = ["threads", "facebook", "linkedin"];
+const allPlatforms: Platform[] = ["threads", "facebook", "linkedin"];
+
+type PlatformSettings = Record<Platform, boolean>;
+async function loadPlatformSettings(): Promise<PlatformSettings> {
+  await pool.query(`CREATE TABLE IF NOT EXISTS content_platform_settings (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    threads_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    facebook_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    linkedin_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  ); INSERT INTO content_platform_settings(id) VALUES(1) ON CONFLICT(id) DO NOTHING;`);
+  const result = await pool.query("SELECT threads_enabled, facebook_enabled, linkedin_enabled FROM content_platform_settings WHERE id=1");
+  const row = result.rows[0] ?? {};
+  return { threads: row.threads_enabled === true, facebook: row.facebook_enabled === true, linkedin: row.linkedin_enabled === true };
+}
 
 function textFor(draft: PlatformDraft): string {
   return [draft.hook, draft.caption, draft.callToAction, ...(draft.hashtags ?? [])]
@@ -122,7 +136,7 @@ async function ensureDeliveryRows(row: DueRow): Promise<void> {
     }
     const drafts = locked.rows[0].platform_drafts as PlatformDraft[];
     for (const draft of drafts) {
-      if (!enabledPlatforms.includes(draft.platform)) continue;
+      if (!allPlatforms.includes(draft.platform)) continue;
       await client.query(
         `INSERT INTO content_publish_deliveries(queue_id,draft_id,platform,status)
          VALUES($1,$2,$3,'pending') ON CONFLICT(queue_id,platform) DO NOTHING`,
@@ -149,7 +163,7 @@ async function claimDelivery(): Promise<{ delivery: Delivery; draft: PlatformDra
        WHERE x.status='pending' AND q.status='scheduled' AND q.scheduled_at <= NOW()
          AND d.review_status='approved'
        ORDER BY q.scheduled_at, x.id
-       FOR UPDATE OF x SKIP LOCKED LIMIT 1`
+       LIMIT 1 FOR UPDATE OF x SKIP LOCKED`
     );
     if (!selected.rowCount) { await client.query("COMMIT"); return null; }
     const row = selected.rows[0] as { id: string; queue_id: string; draft_id: string; platform: Platform; attempts: number; platform_drafts: PlatformDraft[] };
@@ -179,6 +193,8 @@ async function finalizeQueue(queueId: string): Promise<void> {
          WHEN EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status IN ('failed','unknown')) THEN 'failed'
          WHEN EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status='published')
            AND NOT EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status NOT IN ('published','skipped')) THEN 'published'
+         WHEN EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id)
+           AND NOT EXISTS(SELECT 1 FROM content_publish_deliveries d WHERE d.queue_id=q.id AND d.status NOT IN ('skipped')) THEN 'cancelled'
          ELSE 'scheduled' END,
        updated_at=NOW()
      WHERE q.id=$1`,
@@ -209,6 +225,7 @@ async function main(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_publish_deliveries_status ON content_publish_deliveries(status,updated_at);
   `);
+  const platformSettings = await loadPlatformSettings();
   const due = await pool.query<DueRow>(
     `SELECT q.id AS queue_id, q.draft_id, q.scheduled_at, d.review_status, d.platform_drafts
      FROM content_publish_queue q JOIN content_drafts d ON d.id=q.draft_id
@@ -216,6 +233,14 @@ async function main(): Promise<void> {
      ORDER BY q.scheduled_at LIMIT 50`
   );
   for (const row of due.rows) await ensureDeliveryRows(row);
+
+  // Disabled platforms are explicitly skipped before any network call. Missing settings fail closed (all off).
+  await pool.query(
+    "UPDATE content_publish_deliveries SET status='skipped', last_error='Platform disabled in dashboard settings', updated_at=NOW() WHERE status='pending' AND platform = ANY($1::text[])",
+    [allPlatforms.filter(platform => !platformSettings[platform])]
+  );
+  const dueQueueIds = [...new Set(due.rows.map(row => row.queue_id))];
+  for (const queueId of dueQueueIds) await finalizeQueue(queueId);
 
   let processed = 0;
   while (processed < 30) {
@@ -242,7 +267,7 @@ async function main(): Promise<void> {
     }
     await finalizeQueue(item.delivery.queue_id);
   }
-  console.log(`Publish worker finished; deliveries processed: ${processed}.`);
+  console.log(`Publish worker finished; deliveries processed: ${processed}. Enabled platforms: ${allPlatforms.filter(platform => platformSettings[platform]).join(", ") || "none"}.`);
 }
 
 main().catch(error => {
