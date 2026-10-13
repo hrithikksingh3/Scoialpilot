@@ -128,7 +128,7 @@ async function loadPublishSchedule(){
   const data=await r.json();approvedAvailable=Number(data.approvedAvailable||0);$('approvedAvailable').textContent=String(approvedAvailable);
   if(data.schedule){$('publishCount').value=String(data.schedule.postsPerDay||1);$('publishStart').value=data.schedule.startAtLocal||'10:00';$('publishInterval').value=String(data.schedule.intervalHours||2);$('publishTimezone').value=data.schedule.timezone||'Asia/Kolkata';}
   const queue=data.queue||[];
-  $('scheduledQueue').innerHTML=queue.length?'<h3>Reserved queue</h3>'+queue.map(q=>'<div class="draft"><strong>'+esc(q.title)+'</strong><div class="muted">'+esc(q.scheduledLocal)+' · '+esc(q.status)+'</div></div>').join(''):'<p class="muted">No posts are reserved in the queue.</p>';
+  $('scheduledQueue').innerHTML=queue.length?'<h3>Publishing queue and delivery status</h3>'+queue.map(q=>'<div class="draft"><strong>'+esc(q.title)+'</strong><div class="muted">'+esc(q.scheduledLocal)+' · Queue: '+esc(q.status)+'</div>'+(q.deliveries||[]).map(d=>'<div class="muted">'+esc(d.platform)+': '+esc(d.status)+(d.postId?' · Post ID '+esc(d.postId):'')+(d.error?' · '+esc(d.error):'')+'</div>').join('')+'</div>').join(''):'<p class="muted">No posts are reserved in the queue.</p>';
   updatePublishPreview();
  }catch(e){$('publishStatus').textContent=e.message;$('publishStatus').className='error';$('savePublishSchedule').disabled=true}
 }
