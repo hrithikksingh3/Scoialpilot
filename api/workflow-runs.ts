@@ -42,7 +42,7 @@ export default async function handler(req: Req, res: Res) {
         github(`actions/runs/${runId}/jobs?per_page=50`)
       ]);
       return res.status(200).json({
-        run: { id: run.id, name: run.name, status: run.status, conclusion: run.conclusion, event: run.event, branch: run.head_branch, commit: run.head_sha, createdAt: run.created_at, startedAt: run.run_started_at, updatedAt: run.updated_at, runNumber: run.run_number, htmlUrl: run.html_url, durationMs: run.run_started_at ? Math.max(0, new Date(run.updated_at).getTime() - new Date(run.run_started_at).getTime()) : null },
+        run: { id: run.id, name: run.name, status: run.status, conclusion: run.conclusion, event: run.event, branch: run.head_branch, commit: run.head_sha, createdAt: run.created_at, startedAt: run.run_started_at, updatedAt: run.updated_at, runNumber: run.run_number, htmlUrl: run.html_url, durationMs: run.run_started_at ? Math.max(0, (run.status === "in_progress" ? Date.now() : new Date(run.updated_at).getTime()) - new Date(run.run_started_at).getTime()) : null },
         jobs: (jobs.jobs || []).map((job: any) => ({ id: job.id, name: job.name, status: job.status, conclusion: job.conclusion, startedAt: job.started_at, completedAt: job.completed_at, htmlUrl: job.html_url, steps: (job.steps || []).map((step: any) => ({ name: step.name, status: step.status, conclusion: step.conclusion, number: step.number, startedAt: step.started_at, completedAt: step.completed_at })) }))
       });
     }
