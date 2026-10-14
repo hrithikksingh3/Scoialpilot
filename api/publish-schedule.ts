@@ -126,7 +126,7 @@ export default async function handler(req:Req,res:Res){
   const client=await pool.connect();
   try{
    await client.query("BEGIN");
-   const available=await client.query("SELECT id, source_title, platform_drafts FROM content_drafts d WHERE d.review_status='approved' AND NOT EXISTS (SELECT 1 FROM content_publish_queue q WHERE q.draft_id=d.id AND q.status IN ('scheduled','published')) ORDER BY d.created_at_db ASC LIMIT $1 FOR UPDATE OF d",[Number(body.postsPerDay)]);
+   const available=await client.query("SELECT id, source_title, platform_drafts FROM content_drafts d WHERE d.review_status='approved' AND NOT EXISTS (SELECT 1 FROM content_publish_queue q WHERE q.draft_id=d.id AND (q.status IN ('scheduled','published') OR EXISTS (SELECT 1 FROM content_publish_deliveries x WHERE x.queue_id=q.id AND x.status IN ('published','processing','unknown')))) ORDER BY d.created_at_db ASC LIMIT $1 FOR UPDATE OF d",[Number(body.postsPerDay)]);
    if(available.rows.length<Number(body.postsPerDay)){
     await client.query("ROLLBACK");
     return res.status(409).json({error:`Not enough approved drafts: you selected ${body.postsPerDay}, but only ${available.rows.length} unscheduled approved draft(s) are available. Approve more drafts or reduce the count.`,approvedAvailable:available.rows.length});
@@ -140,6 +140,7 @@ export default async function handler(req:Req,res:Res){
    for(let i=0;i<available.rows.length;i++){
     const scheduledAt=new Date(first.getTime()+i*Number(body.intervalHours)*60*60*1000);
     const q=await client.query(`INSERT INTO content_publish_queue(draft_id,scheduled_at,timezone,status,updated_at) VALUES($1,$2,$3,'scheduled',NOW()) ON CONFLICT(draft_id) DO UPDATE SET scheduled_at=EXCLUDED.scheduled_at,timezone=EXCLUDED.timezone,status='scheduled',updated_at=NOW() RETURNING id,draft_id,scheduled_at,timezone,status`,[available.rows[i].id,scheduledAt,body.timezone]);
+    await client.query("DELETE FROM content_publish_deliveries WHERE queue_id=$1 AND status NOT IN ('published','processing','unknown')",[q.rows[0].id]);
     const platformDrafts=available.rows[i].platform_drafts as Array<{platform:string}>;
     for(const platform of activePlatforms){
       if(platformDrafts.some(p=>p.platform===platform)){
