@@ -15,13 +15,16 @@ Scoialpilot is a free-first content research, AI-assisted drafting, review, and 
 - [x] Approval and availability validation before reserving drafts
 - [x] Unique draft reservation and next-day scheduling when today's first slot has passed
 - [x] Responsive dashboard styling for mobile, tablet, and desktop
+- [x] Brutalist operations dashboard with a high-contrast paper/charcoal/burnt-orange palette
+- [x] Live GitHub Actions run monitoring, run durations, job/step status, and run-detail modal
 - [x] CI type-check and test workflow
 - [x] Opt-in due-queue worker and text-only adapters for Threads, Facebook Pages, and LinkedIn Company Pages
 - [ ] Add platform credentials/permissions and verify each platform with a controlled test post
 - [x] Per-platform delivery ledger with post IDs, attempts, error states, and ambiguous-outcome protection
 - [x] Dashboard queue view with per-platform delivery statuses, errors, and returned post IDs
 - [x] Independent Threads/Facebook/LinkedIn publishing switches persisted in Neon; all default off
-- [ ] Queue cancellation/rescheduling controls
+- [x] Safe cancellation for scheduled queue entries
+- [x] GitHub Actions monitoring endpoint with dashboard-token authentication
 
 **Important:** The worker and text-post adapters are implemented, but real publishing remains opt-in and is not verified until valid platform credentials and permissions are configured. Queueing alone is not publishing. Keep both repository variables `PUBLISHING_ENABLED=false` and `PUBLISH_DRY_RUN=true` until you intentionally enable live posting. The worker will not publish with the default settings.
 
@@ -33,6 +36,7 @@ Deploy the repository root on Vercel, with the main branch connected. Configure 
 
 - DATABASE_URL: Neon PostgreSQL connection string (server-side only).
 - DASHBOARD_ACCESS_TOKEN: long random dashboard access token.
+- GITHUB_ACTIONS_TOKEN (recommended): fine-grained GitHub token with read-only Actions permission for this repository. Used server-side by `/api/workflow-runs` to fetch run history and job/step details without quickly exhausting the unauthenticated API rate limit. Never expose it in the browser.
 
 Redeploy after changing environment variables. The static UI is public/index.html; serverless endpoints live under api/.
 
@@ -83,7 +87,7 @@ Draft generation requires a recent reports/latest.json and configured free-tier 
 Draft generation and publishing queue reservation are separate:
 
 - **Draft generation schedule:** creates a batch of 1–5 draft candidates at the configured local hour. GitHub Actions checks hourly, so the time should be selected on an hourly boundary for reliable operation.
-- **Publishing queue:** reserves 1–5 already-approved, not-yet-reserved drafts at the chosen start time and interval. If the first slot for today has passed, the queue begins tomorrow. If the selected slots cross midnight or there are not enough approved drafts, the request is rejected.
+- **Publishing queue:** reserves 1–5 already-approved, not-yet-reserved drafts at the chosen start time. With one post/day, only the start time matters; with multiple posts/day, the selected interval determines each subsequent slot. If the first slot for today has passed, the queue begins tomorrow. If the selected slots cross midnight or there are not enough approved drafts, the request is rejected.
 - **Publishing status:** queue status is not proof of delivery. Real publishing remains disabled until a worker and platform adapters are connected.
 
 ## Free-tier and safety policy
