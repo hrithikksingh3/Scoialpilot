@@ -76,6 +76,13 @@ export default async function handler(req:Req,res:Res){
  try{
   await pool.query(CREATE_SQL);
   await pool.query(CREATE_DELIVERY_SQL);
+  await pool.query(`CREATE TABLE IF NOT EXISTS content_platform_settings (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    threads_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    facebook_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    linkedin_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  ); INSERT INTO content_platform_settings(id) VALUES(1) ON CONFLICT(id) DO NOTHING;`);
   if(req.method==="GET"){
    const [cfg,available,queue]=await Promise.all([
     pool.query('SELECT posts_per_day AS "postsPerDay", start_at_local AS "startAtLocal", interval_hours AS "intervalHours", timezone FROM content_publish_schedule WHERE id=1'),
@@ -95,10 +102,14 @@ export default async function handler(req:Req,res:Res){
   try{new Intl.DateTimeFormat("en",{timeZone:body.timezone});}catch{return fail(res,400,"Invalid timezone");}
   const [startHour,startMinute]=body.startAtLocal.split(":").map(Number);
   if(startHour*60+startMinute+(Number(body.postsPerDay)-1)*Number(body.intervalHours)*60>=24*60)return fail(res,400,"These intervals would push a post into the next day. Reduce the post count or interval, or choose an earlier start time.");
+  const settingsResult=await pool.query("SELECT threads_enabled,facebook_enabled,linkedin_enabled FROM content_platform_settings WHERE id=1");
+  const settingRow=settingsResult.rows[0]??{};
+  const activePlatforms=(["threads","facebook","linkedin"] as const).filter(p=>settingRow[({threads:"threads_enabled",facebook:"facebook_enabled",linkedin:"linkedin_enabled"} as const)[p]]===true);
+  if(activePlatforms.length===0)return fail(res,409,"Select and save at least one platform in Platform auto-publishing before scheduling posts.");
   const client=await pool.connect();
   try{
    await client.query("BEGIN");
-   const available=await client.query("SELECT id, source_title FROM content_drafts d WHERE d.review_status='approved' AND NOT EXISTS (SELECT 1 FROM content_publish_queue q WHERE q.draft_id=d.id AND q.status IN ('scheduled','published')) ORDER BY d.created_at_db ASC LIMIT $1 FOR UPDATE OF d",[Number(body.postsPerDay)]);
+   const available=await client.query("SELECT id, source_title, platform_drafts FROM content_drafts d WHERE d.review_status='approved' AND NOT EXISTS (SELECT 1 FROM content_publish_queue q WHERE q.draft_id=d.id AND q.status IN ('scheduled','published')) ORDER BY d.created_at_db ASC LIMIT $1 FOR UPDATE OF d",[Number(body.postsPerDay)]);
    if(available.rows.length<Number(body.postsPerDay)){
     await client.query("ROLLBACK");
     return res.status(409).json({error:`Not enough approved drafts: you selected ${body.postsPerDay}, but only ${available.rows.length} unscheduled approved draft(s) are available. Approve more drafts or reduce the count.`,approvedAvailable:available.rows.length});
@@ -111,8 +122,14 @@ export default async function handler(req:Req,res:Res){
    const reserved=[];
    for(let i=0;i<available.rows.length;i++){
     const scheduledAt=new Date(first.getTime()+i*Number(body.intervalHours)*60*60*1000);
-    const q=await client.query(`INSERT INTO content_publish_queue(draft_id,scheduled_at,timezone,status,updated_at) VALUES($1,$2,$3,'scheduled',NOW()) ON CONFLICT(draft_id) DO UPDATE SET scheduled_at=EXCLUDED.scheduled_at,timezone=EXCLUDED.timezone,status='scheduled',updated_at=NOW() RETURNING draft_id,scheduled_at,timezone,status`,[available.rows[i].id,scheduledAt,body.timezone]);
-    reserved.push({id:q.rows[0].draft_id,title:available.rows[i].source_title,scheduledAt:q.rows[0].scheduled_at,scheduledLocal:formatLocal(new Date(q.rows[0].scheduled_at),body.timezone),status:q.rows[0].status});
+    const q=await client.query(`INSERT INTO content_publish_queue(draft_id,scheduled_at,timezone,status,updated_at) VALUES($1,$2,$3,'scheduled',NOW()) ON CONFLICT(draft_id) DO UPDATE SET scheduled_at=EXCLUDED.scheduled_at,timezone=EXCLUDED.timezone,status='scheduled',updated_at=NOW() RETURNING id,draft_id,scheduled_at,timezone,status`,[available.rows[i].id,scheduledAt,body.timezone]);
+    const platformDrafts=available.rows[i].platform_drafts as Array<{platform:string}>;
+    for(const platform of activePlatforms){
+      if(platformDrafts.some(p=>p.platform===platform)){
+        await client.query("INSERT INTO content_publish_deliveries(queue_id,draft_id,platform,status) VALUES($1,$2,$3,'pending') ON CONFLICT(queue_id,platform) DO NOTHING",[q.rows[0].id,q.rows[0].draft_id,platform]);
+      }
+    }
+    reserved.push({id:q.rows[0].draft_id,title:available.rows[i].source_title,scheduledAt:q.rows[0].scheduled_at,scheduledLocal:formatLocal(new Date(q.rows[0].scheduled_at),body.timezone),status:q.rows[0].status,platforms:activePlatforms});
    }
    await client.query("COMMIT");
    return res.status(200).json({scheduledCount:reserved.length,approvedAvailable:available.rows.length,schedule:{postsPerDay:Number(body.postsPerDay),startAtLocal:body.startAtLocal,intervalHours:Number(body.intervalHours),timezone:body.timezone},queue:reserved,note:"Queue reserved. No social platform has been published to."});
