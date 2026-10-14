@@ -111,7 +111,31 @@ const $=id=>document.getElementById(id);let token=sessionStorage.getItem('scoial
 function auth(){return {'authorization':'Bearer '+token,'content-type':'application/json'}}
 function showApp(){ $('login').classList.toggle('hide',!!token);$('app').classList.toggle('hide',!token);$('refresh').classList.toggle('hide',!token);$('scheduleJump').classList.toggle('hide',!token);if(token)load()}
 $('scheduleJump').onclick=()=> $('schedulerPanel').scrollIntoView({behavior:'smooth',block:'start'});
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();token=$('token').value.trim();sessionStorage.setItem('scoialpilot_token',token);showApp()});
+async function validateToken(candidate){
+ const r=await fetch('/api/drafts',{headers:{'authorization':'Bearer '+candidate,'content-type':'application/json'},cache:'no-store'});
+ if(r.status===401||r.status===403)return {ok:false,message:'Token rejected by the deployed API. Confirm Vercel DASHBOARD_ACCESS_TOKEN matches this value, then redeploy Production.'};
+ if(!r.ok)return {ok:false,message:'Could not verify token (HTTP '+r.status+'). Check deployment and database configuration.'};
+ return {ok:true};
+}
+$('loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const candidate=$('token').value.trim(),button=$('loginForm').querySelector('button');
+ if(!candidate){$('loginError').textContent='Enter your dashboard access token.';return}
+ button.disabled=true;$('loginError').textContent='Verifying access token…';
+ try{
+  const result=await validateToken(candidate);
+  if(!result.ok){token='';sessionStorage.removeItem('scoialpilot_token');showApp();$('loginError').textContent=result.message;return}
+  token=candidate;sessionStorage.setItem('scoialpilot_token',token);$('loginError').textContent='';showApp();
+ }catch(error){$('loginError').textContent='Could not verify token. Check your connection and try again.'}
+ finally{button.disabled=false}
+});
+async function restoreSession(){
+ const saved=sessionStorage.getItem('scoialpilot_token')||'';
+ if(!saved){token='';showApp();return}
+ const result=await validateToken(saved).catch(()=>({ok:false,message:'Could not verify the saved token.'}));
+ if(!result.ok){token='';sessionStorage.removeItem('scoialpilot_token');showApp();$('loginError').textContent=result.message;return}
+ token=saved;showApp();
+}
 $('logout').onclick=()=>{token='';sessionStorage.removeItem('scoialpilot_token');showApp()};
 $('refresh').onclick=load;
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{status=b.dataset.status;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));render()});
@@ -177,5 +201,5 @@ $('schedulerForm').addEventListener('submit',async e=>{e.preventDefault();const 
 function render(){const list=drafts.filter(d=>d.reviewStatus===status);if(!list.length){$('drafts').innerHTML='<div class="empty">No '+status.replace('_',' ')+' drafts found.</div>';return}$('drafts').innerHTML=list.map(d=>'<article class="draft" data-id="'+esc(d.id)+'"><div class="drafthead"><div><strong>'+esc(d.source.title)+'</strong><div class="muted">'+esc(d.source.sourceName)+' · '+esc(new Date(d.createdAt).toLocaleString())+' · '+esc(d.provider)+'</div></div><span class="pill">'+esc(d.reviewStatus)+'</span></div><p>'+esc(d.angle)+'</p><p><a href="'+esc(d.source.url)+'" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">Open source ↗</a></p><div class="platforms">'+(d.platforms||[]).map(p=>'<div class="platform"><h4>'+esc(p.platform)+'</h4><img class="visual" loading="lazy" alt="Post visual with hook: '+esc(p.hook)+'" src="'+esc(p.visualUrl||('/api/visual?title='+encodeURIComponent(p.hook)+'&category='+encodeURIComponent(d.angle)+'&topic='+encodeURIComponent(d.source.sourceName)))+'"><div class="muted">Hook</div><p>'+esc(p.hook)+'</p><label class="muted">Caption (editable)</label><textarea data-platform="'+esc(p.platform)+'">'+esc(p.caption)+'</textarea><div class="muted" style="margin-top:8px">'+esc(p.hashtags.join(' '))+'</div></div>').join('')+'</div><div class="actions">'+(status==='pending_approval'?'<button class="primary" data-action="approve">Approve draft</button><button class="danger" data-action="reject">Reject</button>':'')+'<button data-action="save">Save caption edits</button></div></article>').join('');$('drafts').querySelectorAll('button[data-action]').forEach(b=>b.onclick=()=>act(b))}
 async function act(button){const card=button.closest('.draft'),id=card.dataset.id,action=button.dataset.action;button.disabled=true;try{if(action==='save'){const captions=[...card.querySelectorAll('textarea[data-platform]')].map(t=>({platform:t.dataset.platform,caption:t.value}));const r=await fetch('/api/drafts',{method:'PATCH',headers:auth(),body:JSON.stringify({id,captions})});if(!r.ok)throw new Error((await r.json()).error||'Could not save edits');$('message').textContent='Caption edits saved.'}else{const r=await fetch('/api/review',{method:'POST',headers:auth(),body:JSON.stringify({id,decision:action})});if(!r.ok)throw new Error((await r.json()).error||'Review update failed');$('message').textContent='Draft '+(action==='approve'?'approved':'rejected')+'. No post was published.'}await load()}catch(e){$('message').innerHTML='<span class="error">'+esc(e.message)+'</span>'}finally{button.disabled=false}}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-showApp();
+restoreSession();
 </script></body></html>
