@@ -95,7 +95,24 @@ export default async function handler(req:Req,res:Res){
    ]);
    return res.status(200).json({schedule:cfg.rows[0],approvedAvailable:Number(available.rows[0].count),queue:queue.rows.map(q=>({id:q.id,title:q.title,status:q.status,scheduledAt:q.scheduled_at,scheduledLocal:formatLocal(new Date(q.scheduled_at),q.timezone),deliveries:q.deliveries||[]}))});
   }
-  if(req.method!=="PUT"){res.setHeader("Allow","GET, PUT");return fail(res,405,"Method not allowed");}
+  if(req.method==="DELETE"){
+   if(!req.body||typeof req.body!=="object")return fail(res,400,"Provide a queue item ID.");
+   const body=req.body as {id?:unknown};
+   if(typeof body.id!=="string"||!/^\\d+$/.test(body.id))return fail(res,400,"Invalid queue item ID.");
+   const client=await pool.connect();
+   try{
+    await client.query("BEGIN");
+    const locked=await client.query("SELECT id,status FROM content_publish_queue WHERE id=$1 FOR UPDATE",[body.id]);
+    if(!locked.rowCount){await client.query("ROLLBACK");return fail(res,404,"Queue item not found.");}
+    const activity=await client.query("SELECT COUNT(*)::int AS count FROM content_publish_deliveries WHERE queue_id=$1 AND status IN ('processing','published','unknown')",[body.id]);
+    if(Number(activity.rows[0].count)>0){await client.query("ROLLBACK");return fail(res,409,"Cannot cancel: a platform delivery is processing, published, or has an unknown outcome. Reconcile it first.");}
+    await client.query("UPDATE content_publish_deliveries SET status='skipped',last_error='Cancelled by user before publishing',updated_at=NOW() WHERE queue_id=$1 AND status='pending'",[body.id]);
+    await client.query("UPDATE content_publish_queue SET status='cancelled',updated_at=NOW() WHERE id=$1",[body.id]);
+    await client.query("COMMIT");
+    return res.status(200).json({cancelled:true,note:"Queue item cancelled. No new platform requests will be made for this item."});
+   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+  }
+  if(req.method!=="PUT"){res.setHeader("Allow","GET, PUT, DELETE");return fail(res,405,"Method not allowed");}
   if(!req.body||typeof req.body!=="object")return fail(res,400,"Invalid request body");
   const body=req.body as {postsPerDay?:unknown;startAtLocal?:unknown;intervalHours?:unknown;timezone?:unknown};
   if(!Number.isInteger(body.postsPerDay)||Number(body.postsPerDay)<1||Number(body.postsPerDay)>5||typeof body.startAtLocal!=="string"||!/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/.test(body.startAtLocal)||![1,2,3,4,6,8].includes(Number(body.intervalHours))||typeof body.timezone!=="string"||body.timezone.length>80)return fail(res,400,"Choose 1–5 posts, a valid start time, an interval, and a timezone.");
