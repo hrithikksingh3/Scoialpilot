@@ -134,14 +134,20 @@ async function ensureDeliveryRows(row: DueRow): Promise<void> {
       await client.query("COMMIT");
       return;
     }
-    const drafts = locked.rows[0].platform_drafts as PlatformDraft[];
-    for (const draft of drafts) {
-      if (!allPlatforms.includes(draft.platform)) continue;
-      await client.query(
-        `INSERT INTO content_publish_deliveries(queue_id,draft_id,platform,status)
-         VALUES($1,$2,$3,'pending') ON CONFLICT(queue_id,platform) DO NOTHING`,
-        [row.queue_id, row.draft_id, draft.platform]
-      );
+    const existing = await client.query("SELECT 1 FROM content_publish_deliveries WHERE queue_id=$1 LIMIT 1", [row.queue_id]);
+    // New queue rows snapshot their destinations at scheduling time. Only legacy queue rows
+    // without a delivery ledger are initialized from the current, fail-closed platform settings.
+    if (!existing.rowCount) {
+      const settings = await loadPlatformSettings();
+      const drafts = locked.rows[0].platform_drafts as PlatformDraft[];
+      for (const draft of drafts) {
+        if (!allPlatforms.includes(draft.platform) || !settings[draft.platform]) continue;
+        await client.query(
+          `INSERT INTO content_publish_deliveries(queue_id,draft_id,platform,status)
+           VALUES($1,$2,$3,'pending') ON CONFLICT(queue_id,platform) DO NOTHING`,
+          [row.queue_id, row.draft_id, draft.platform]
+        );
+      }
     }
     await client.query("COMMIT");
   } catch (error) {
