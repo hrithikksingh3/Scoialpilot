@@ -209,14 +209,6 @@ async function finalizeQueue(queueId: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  if (process.env.PUBLISHING_ENABLED !== "true") {
-    console.log("Publishing disabled. Set PUBLISHING_ENABLED=true only after adding platform secrets and verifying permissions.");
-    return;
-  }
-  if (process.env.PUBLISH_DRY_RUN !== "false") {
-    console.log("Dry-run safety is enabled. Set PUBLISH_DRY_RUN=false to permit real publishing.");
-    return;
-  }
   if (!env("DATABASE_URL")) throw new Error("DATABASE_URL is required");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS content_publish_deliveries (
@@ -239,6 +231,32 @@ async function main(): Promise<void> {
      ORDER BY q.scheduled_at LIMIT 50`
   );
   for (const row of due.rows) await ensureDeliveryRows(row);
+
+  // Persist safety-gate reasons against due deliveries so the dashboard explains why nothing was sent.
+  // Keep status=pending: this is a configuration block, not a platform delivery attempt.
+  const publishingEnabled = process.env.PUBLISHING_ENABLED === "true";
+  const dryRun = process.env.PUBLISH_DRY_RUN !== "false";
+  if (!publishingEnabled || dryRun) {
+    const reasons = [
+      !publishingEnabled ? "PUBLISHING_ENABLED is not true" : "",
+      dryRun ? "PUBLISH_DRY_RUN is not false (dry-run safety is enabled)" : ""
+    ].filter(Boolean);
+    const blocker = "Publishing blocked: " + reasons.join("; ") + ". No LinkedIn/social API request was made. Update GitHub Actions repository variables after verifying platform credentials and permissions.";
+    const updated = await pool.query(
+      `UPDATE content_publish_deliveries x
+       SET last_error=$1, updated_at=NOW()
+       FROM content_publish_queue q
+       WHERE x.queue_id=q.id AND q.status='scheduled' AND q.scheduled_at <= NOW()
+         AND x.status='pending' AND x.queue_id=ANY($2::bigint[])
+       RETURNING x.id, x.platform, x.queue_id`,
+      [blocker, [...new Set(due.rows.map(row => row.queue_id))]]
+    );
+    for (const item of updated.rows) {
+      console.error(`BLOCKED delivery ${item.id} platform=${item.platform} queue=${item.queue_id}: ${blocker}`);
+    }
+    console.error(`Publishing worker did not call any platform API. PUBLISHING_ENABLED=${String(publishingEnabled)}, PUBLISH_DRY_RUN=${String(dryRun)}, due deliveries annotated=${updated.rowCount ?? 0}.`);
+    return;
+  }
 
   // Disabled platforms are explicitly skipped before any network call. Missing settings fail closed (all off).
   await pool.query(
