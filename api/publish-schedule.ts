@@ -88,7 +88,10 @@ export default async function handler(req:Req,res:Res){
     pool.query('SELECT posts_per_day AS "postsPerDay", start_at_local AS "startAtLocal", interval_hours AS "intervalHours", timezone FROM content_publish_schedule WHERE id=1'),
     pool.query("SELECT COUNT(*)::int AS count FROM content_drafts d WHERE d.review_status='approved' AND NOT EXISTS (SELECT 1 FROM content_publish_queue q WHERE q.draft_id=d.id AND q.status IN ('scheduled','published'))"),
     pool.query(`SELECT q.id AS "queueId",q.draft_id AS id,d.source_title AS title,q.scheduled_at,q.timezone,q.status,
-      COALESCE((SELECT json_agg(json_build_object('platform',x.platform,'status',x.status,'postId',x.platform_post_id,'error',x.last_error) ORDER BY x.platform)
+      COALESCE((SELECT json_agg(json_build_object(
+          'platform',x.platform,'status',x.status,'postId',x.platform_post_id,'error',x.last_error,
+          'attempts',x.attempts,'updatedAt',x.updated_at,'publishedAt',x.published_at
+        ) ORDER BY x.platform)
         FROM content_publish_deliveries x WHERE x.queue_id=q.id),'[]'::json) AS deliveries
       FROM content_publish_queue q JOIN content_drafts d ON d.id=q.draft_id
       ORDER BY q.scheduled_at DESC LIMIT 50`)
