@@ -2,8 +2,8 @@ name: Publish Due Content
 
 on:
   schedule:
-    # GitHub Actions schedules may be delayed; the worker checks actual due times in Neon.
-    - cron: "*/15 * * * *"
+    # Run frequently; GitHub may delay scheduled workflows, so do not assume exact-minute execution.
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
