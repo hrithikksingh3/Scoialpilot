@@ -21,12 +21,13 @@ Scoialpilot is a free-first content research, AI-assisted drafting, review, and 
 - [x] Opt-in due-queue worker and text-only adapters for Threads, Facebook Pages, and LinkedIn Company Pages
 - [ ] Add platform credentials/permissions and verify each platform with a controlled test post
 - [x] Per-platform delivery ledger with post IDs, attempts, error states, and ambiguous-outcome protection
-- [x] Dashboard queue view with per-platform delivery statuses, errors, and returned post IDs
+- [x] Dashboard queue view with per-platform delivery statuses, errors, attempt counts, last-check timestamps, and returned post IDs
+- [x] Persist due-post safety-gate reasons in the delivery ledger and display blocked items distinctly
 - [x] Independent Threads/Facebook/LinkedIn publishing switches persisted in Neon; all default off
 - [x] Safe cancellation for scheduled queue entries
 - [x] GitHub Actions monitoring endpoint with dashboard-token authentication
 
-**Important:** The worker and text-post adapters are implemented, but real publishing remains opt-in and is not verified until valid platform credentials and permissions are configured. Queueing alone is not publishing. Keep both repository variables `PUBLISHING_ENABLED=false` and `PUBLISH_DRY_RUN=true` until you intentionally enable live posting. The worker will not publish with the default settings.
+**Important:** The worker and text-post adapters are implemented, but real publishing remains opt-in and is not verified until valid platform credentials and permissions are configured. Queueing alone is not publishing. Live publishing is intentionally blocked unless the GitHub Actions repository variable `PUBLISHING_ENABLED` is set to `true` AND `PUBLISH_DRY_RUN` is set to `false`. The current default is disabled + dry-run, which means the worker makes no social API requests. The worker now records this exact blocker against each due pending delivery so it appears in the dashboard. Only change these variables after confirming the LinkedIn organization ID, token scopes, and Page admin permission; this enables real posts.
 
 ## Deployment
 
