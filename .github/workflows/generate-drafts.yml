@@ -2,7 +2,6 @@ name: Generate Drafts
 
 on:
   schedule:
-    # Check the configured local-time schedule hourly. The database decides whether a run is due.
     - cron: "0 * * * *"
   workflow_dispatch:
     inputs:
@@ -37,7 +36,7 @@ jobs:
         run: npm run typecheck
       - name: Run tests
         run: npm test
-      - name: Check configured schedule
+      - name: Check configured generation schedule
         id: schedule
         run: npm run scheduler-check
         env:
@@ -46,14 +45,8 @@ jobs:
           DRAFT_LIMIT: ${{ inputs.draft_limit || '2' }}
       - name: Report skipped schedule
         if: steps.schedule.outputs.should_run != 'true'
-        run: echo "No draft run is due for the configured timezone/hour, or the scheduler is disabled."
-      - name: Fetch latest research report
-        if: steps.schedule.outputs.should_run == 'true'
-        run: npm run research
-        env:
-          NODE_ENV: production
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      - name: Generate and save drafts
+        run: echo "No generation run is due, or generation is disabled / research is insufficient."
+      - name: Generate drafts from existing research pool
         if: steps.schedule.outputs.should_run == 'true'
         run: npm run generate-drafts
         env:
