@@ -24,13 +24,14 @@ export default async function handler(req: Req, res: Res) {
   if (typeof body.id !== "string" || !["approve", "reject"].includes(String(body.decision))) return res.status(400).json({ error: "Invalid id or decision" });
   const next = body.decision === "approve" ? "approved" : "rejected";
   try {
-    const allowedCurrent = body.decision === "approve" ? ["pending_approval", "rejected"] : ["pending_approval"];
+    // Approval is the final publish gate. Generated content normally stays `ready` until its scheduled publish time.
+    const allowedCurrent = body.decision === "approve" ? ["ready", "pending_approval", "rejected"] : ["ready", "pending_approval"];
     const result = await pool.query(
       "UPDATE content_drafts SET review_status = $2, updated_at = NOW() WHERE id = $1 AND review_status = ANY($3::text[]) RETURNING id, review_status, publishing_status",
       [body.id, next, allowedCurrent]
     );
-    if (!result.rowCount) return res.status(409).json({ error: "Draft not found or no longer eligible for this review action" });
-    return res.status(200).json({ updated: true, ...result.rows[0], note: "No content was published." });
+    if (!result.rowCount) return res.status(409).json({ error: "Draft not found or no longer eligible for this final publish approval action" });
+    return res.status(200).json({ updated: true, ...result.rows[0], note: "Final publish approval recorded. Publishing still occurs only at the scheduled time." });
   } catch (error) {
     return res.status(500).json({ error: error instanceof Error ? error.message : "Database update failed" });
   }
