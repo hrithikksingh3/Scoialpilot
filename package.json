@@ -16,7 +16,7 @@
     "review-draft": "tsx src/content/review-draft.ts",
     "scheduler-check": "tsx src/content/scheduler.ts",
     "scheduler-mark-run": "tsx src/content/scheduler.ts mark",
-    "publish-due": "tsx src/content/publish-due.ts"
+    "publish-due": "tsx src/content/publish-worker.ts"
   },
   "dependencies": {
     "pg": "^8.16.3"
