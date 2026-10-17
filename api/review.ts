@@ -23,16 +23,42 @@ export default async function handler(req: Req, res: Res) {
   const body = req.body as { id?: unknown; decision?: unknown };
   if (typeof body.id !== "string" || !["approve", "reject"].includes(String(body.decision))) return res.status(400).json({ error: "Invalid id or decision" });
   const next = body.decision === "approve" ? "approved" : "rejected";
+  const client = await pool.connect();
   try {
-    // Approval is the final publish gate. Generated content normally stays `ready` until its scheduled publish time.
-    const allowedCurrent = body.decision === "approve" ? ["ready", "pending_approval", "rejected"] : ["ready", "pending_approval"];
-    const result = await pool.query(
-      "UPDATE content_drafts SET review_status = $2, updated_at = NOW() WHERE id = $1 AND review_status = ANY($3::text[]) RETURNING id, review_status, publishing_status",
-      [body.id, next, allowedCurrent]
-    );
-    if (!result.rowCount) return res.status(409).json({ error: "Draft not found or no longer eligible for this final publish approval action" });
-    return res.status(200).json({ updated: true, ...result.rows[0], note: "Final publish approval recorded. Publishing still occurs only at the scheduled time." });
+    await client.query("BEGIN");
+    const current = await client.query("SELECT review_status FROM content_drafts WHERE id=$1 FOR UPDATE", [body.id]);
+    if (!current.rowCount) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Draft not found" }); }
+    const currentStatus = String(current.rows[0].review_status);
+    const allowed = body.decision === "approve" ? ["ready", "pending_approval", "rejected"] : ["ready", "pending_approval"];
+    if (!allowed.includes(currentStatus)) { await client.query("ROLLBACK"); return res.status(409).json({ error: `Draft is not eligible for final approval from status ${currentStatus}.` }); }
+
+    await client.query("UPDATE content_drafts SET review_status=$2, updated_at=NOW() WHERE id=$1", [body.id, next]);
+
+    if (next === "approved") {
+      await client.query(
+        "UPDATE content_publish_queue SET status='scheduled', updated_at=NOW() WHERE draft_id=$1 AND status='awaiting_approval'",
+        [body.id]
+      );
+      await client.query(
+        "UPDATE content_publish_deliveries SET status='pending', last_error=NULL, updated_at=NOW() WHERE draft_id=$1 AND status='awaiting_approval'",
+        [body.id]
+      );
+    } else {
+      await client.query(
+        "UPDATE content_publish_queue SET status='cancelled', updated_at=NOW() WHERE draft_id=$1 AND status='awaiting_approval'",
+        [body.id]
+      );
+      await client.query(
+        "UPDATE content_publish_deliveries SET status='skipped', last_error='Rejected at final publish approval', updated_at=NOW() WHERE draft_id=$1 AND status='awaiting_approval'",
+        [body.id]
+      );
+    }
+    await client.query("COMMIT");
+    return res.status(200).json({ updated: true, id: body.id, reviewStatus: next, finalPublishGate: next === "approved" ? "passed" : "rejected", note: next === "approved" ? "Final approval recorded. The existing scheduled time will be used for publishing." : "Publishing cancelled for this draft." });
   } catch (error) {
+    await client.query("ROLLBACK");
     return res.status(500).json({ error: error instanceof Error ? error.message : "Database update failed" });
+  } finally {
+    client.release();
   }
 }
