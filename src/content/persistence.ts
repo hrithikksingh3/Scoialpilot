@@ -19,11 +19,15 @@ export async function saveDrafts(drafts: Array<{ provider: "gemini" | "openroute
         angle TEXT NOT NULL,
         factual_claims JSONB NOT NULL DEFAULT '[]'::jsonb,
         platform_drafts JSONB NOT NULL,
-        review_status TEXT NOT NULL DEFAULT 'pending_approval' CHECK (review_status IN ('pending_approval', 'approved', 'rejected')),
-        publishing_status TEXT NOT NULL DEFAULT 'not_published' CHECK (publishing_status = 'not_published'),
+        review_status TEXT NOT NULL DEFAULT 'ready',
+        publishing_status TEXT NOT NULL DEFAULT 'not_published',
         created_at_db TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE content_drafts DROP CONSTRAINT IF EXISTS content_drafts_review_status_check;
+      ALTER TABLE content_drafts ADD CONSTRAINT content_drafts_review_status_check
+        CHECK (review_status IN ('ready', 'pending_approval', 'approved', 'rejected'));
+      UPDATE content_drafts SET review_status = 'ready', updated_at = NOW() WHERE review_status = 'pending_approval';
       CREATE INDEX IF NOT EXISTS idx_content_drafts_review_created ON content_drafts (review_status, created_at_db DESC);
     `);
     let saved = 0;
@@ -32,7 +36,7 @@ export async function saveDrafts(drafts: Array<{ provider: "gemini" | "openroute
       await pool.query(
         `INSERT INTO content_drafts
           (id, created_at, provider, source_title, source_url, source_name, angle, factual_claims, platform_drafts, review_status, publishing_status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, 'pending_approval', 'not_published')
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, 'ready', 'not_published')
          ON CONFLICT (id) DO NOTHING`,
         [d.id, d.createdAt, item.provider, d.source.title, d.source.url, d.source.sourceName, d.angle, JSON.stringify(d.factualClaims), JSON.stringify(d.platforms)]
       );
