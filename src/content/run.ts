@@ -11,7 +11,7 @@ async function main(): Promise<void> {
   if (process.env.ALLOW_PAID_AI === "true") throw new Error("Paid AI is disabled. Set ALLOW_PAID_AI=false.");
   const reportPath = resolve(process.env.RESEARCH_REPORT_PATH || "reports/latest.json");
   const report = JSON.parse(await readFile(reportPath, "utf8")) as ResearchReport;
-  if (!Array.isArray(report.stories) || report.stories.length === 0) throw new Error("No research stories found. Run npm run research first.");
+  if (!Array.isArray(report.stories) || report.stories.length === 0) throw new Error("No research stories found. Run the Research pipeline first.");
 
   const requested = Number.parseInt(process.env.DRAFT_LIMIT || "3", 10);
   const limit = Number.isFinite(requested) ? Math.max(1, Math.min(5, requested)) : 2;
@@ -24,7 +24,6 @@ async function main(): Promise<void> {
     } catch (primaryError) {
       const primaryMessage = primaryError instanceof Error ? primaryError.message : "Unknown Gemini error";
       failures.push({ sourceUrl: story.url, provider: "gemini", error: primaryMessage });
-      // OpenRouter must be explicitly configured with a :free model. It will fail closed otherwise.
       try {
         drafts.push({ provider: "openrouter", draft: await generateWithOpenRouter(story) });
       } catch (fallbackError) {
@@ -35,7 +34,7 @@ async function main(): Promise<void> {
 
   if (drafts.length > 0) {
     const saved = await saveDrafts(drafts);
-    console.log(JSON.stringify({ database: "neon", draftsSaved: saved.saved, reviewStatus: "pending_approval" }));
+    console.log(JSON.stringify({ database: "neon", draftsSaved: saved.saved, lifecycle: "ready_for_scheduling" }));
   }
 
   const output = {
@@ -43,7 +42,7 @@ async function main(): Promise<void> {
     status: "completed",
     drafts,
     failures,
-    reviewStatus: "pending_approval",
+    lifecycle: "ready_for_scheduling",
     publishingStatus: "not_published"
   };
   await mkdir(resolve("reports"), { recursive: true });
@@ -52,8 +51,7 @@ async function main(): Promise<void> {
     status: "completed",
     draftsGenerated: drafts.length,
     failures: failures.map((item) => ({ provider: item.provider, sourceUrl: item.sourceUrl, error: item.error.slice(0, 240) })),
-    providersUsed: [...new Set(drafts.map((item) => item.provider))],
-    reviewStatus: "pending_approval",
+    lifecycle: "ready_for_scheduling",
     publishingStatus: "not_published",
     outputPath: "reports/drafts-latest.json"
   }, null, 2));
